@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from extensions import db
 from models import Session, Message, Phrase
-from services.sign_recognition import predict_signs, supported_signs
+from services.sign_recognition import supported_signs, model_info
 from services.language_processing import sentence_to_signs
 from services.audit import log_action
 from services.consent import CONSENT_PURPOSES, grant_consent, revoke_consent
@@ -22,17 +22,7 @@ def _open_session_for_patient():
 @api_bp.get("/signs")
 @login_required
 def signs_index():
-    return jsonify({"signs": supported_signs()})
-
-
-@api_bp.post("/signs/recognize")
-@login_required
-def signs_recognize():
-    payload = request.get_json(silent=True) or {}
-    result = predict_signs(payload.get("landmarks"))
-    if result["sign"] != "none":
-        log_action("sign_recognized", f"{result['sign']} ({result['confidence']})")
-    return jsonify(result)
+    return jsonify({"signs": supported_signs(), "model": model_info()})
 
 
 @api_bp.post("/messages")

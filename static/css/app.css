@@ -600,3 +600,23 @@ html.a11y-motion *, html.a11y-motion *::before, html.a11y-motion *::after { anim
   .message-list--chat .message { max-width: 92%; }
   .toast-stack { left: 16px; right: 16px; bottom: 88px; }
 }
+
+/* ---------- Sign translator ---------- */
+.camera-empty {
+  position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 24px; text-align: center; color: rgba(255, 255, 255, .7); font-size: .9rem;
+}
+.camera-empty p { margin: 0; max-width: 30ch; }
+.sign-meter { position: absolute; left: 12px; right: 12px; top: 12px; z-index: 2; height: 4px; border-radius: 99px; background: rgba(255,255,255,.2); overflow: hidden; }
+.sign-meter span { display: block; height: 100%; width: 0; background: #3db5a2; transition: width .1s linear; }
+.result-box small { margin-top: 4px; font-size: .78rem; }
+.alts { margin: -4px 0 14px; display: flex; flex-direction: column; gap: 8px; }
+.alts__list { display: flex; flex-wrap: wrap; gap: 6px; }
+.alt { cursor: pointer; font-size: .86rem; padding: 6px 12px; color: var(--text); border-color: var(--border-strong); font-family: inherit; }
+.alt:hover { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+.sign-index summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+.sign-index summary::-webkit-details-marker { display: none; }
+.sign-index summary::before { content: "+"; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; background: var(--surface-2); font-weight: 700; color: var(--muted); }
+.sign-index[open] summary::before { content: "−"; }
+.sign-index__group { margin-bottom: 14px; }
+.sign-index__group .section-title { margin-bottom: 6px; }

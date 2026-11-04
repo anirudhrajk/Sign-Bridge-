@@ -2,7 +2,6 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 from extensions import db
 from models import Session, Message, MedicalSign, Phrase, AuditLog, User
-from services.sign_recognition import sign_guide
 from services.emergency import get_default_phrases
 from services.dictionary import get_local_seed
 from services.audit import log_action
@@ -55,7 +54,7 @@ def sign_translator():
     if not has_consent(current_user.id, "camera_capture"):
         flash("Please grant camera consent first.", "warning")
         return redirect(url_for("views.consent"))
-    return render_template("sign_translator.html", guide=sign_guide())
+    return render_template("sign_translator.html")
 
 
 @views_bp.route("/patient/emergency")

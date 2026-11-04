@@ -1,52 +1,61 @@
 {% extends "base.html" %}
-{% block title %}Sign translator — SignBridge{% endblock %}
-{% block page_title %}Sign translator{% endblock %}
-{% block page_sub %}Show one of the hand signs below to the camera. Check the text before sending it.{% endblock %}
+{% block title %}Sign to your doctor · SignBridge{% endblock %}
+{% block page_title %}Sign to your doctor{% endblock %}
+{% block page_sub %}Sign one word at a time, then pause or lower your hands. Check the message before you send it.{% endblock %}
 {% block content %}
 
 <section class="translator">
   <div class="card translator__camera">
-    <div class="camera-frame">
+    <div class="camera-frame" id="cameraFrame">
       <video id="cameraFeed" autoplay playsinline muted></video>
       <canvas id="landmarkCanvas"></canvas>
+      <div class="camera-empty" id="cameraEmpty">
+        <svg class="icon icon--xl"><use href="#i-hand"/></svg>
+        <p>Sit so your face, shoulders and both hands are in view.</p>
+      </div>
       <div class="camera-status" id="cameraStatus">Camera off</div>
+      <div class="sign-meter" id="signMeter" hidden><span></span></div>
     </div>
     <div class="translator__controls">
-      <button class="btn btn--primary" id="startCameraBtn">Start camera</button>
-      <button class="btn btn--ghost" id="stopCameraBtn" disabled>Stop</button>
-      <button class="btn btn--ghost" id="recognizeBtn" disabled>Recognize sign</button>
+      <button class="btn btn--primary" id="startCameraBtn" type="button"><svg class="icon"><use href="#i-hand"/></svg> Start camera</button>
+      <button class="btn btn--ghost" id="stopCameraBtn" type="button" disabled>Stop</button>
+      <button class="btn btn--ghost" id="recognizeBtn" type="button" disabled title="Read the last two seconds now">Read sign now</button>
     </div>
-    <ul class="gesture-list">
-      {% for g in guide %}
-      <li><strong>{{ g.gesture }}</strong><span>{{ g.message }}</span></li>
-      {% endfor %}
-    </ul>
-    <p class="muted small">Demo hand shapes for this prototype. Full ISL recognition is still to come.</p>
+    <p class="muted small" style="margin:0"><svg class="icon" style="width:14px;height:14px;vertical-align:-2px"><use href="#i-lock"/></svg> Video stays on this device. Only the text you send leaves it.</p>
   </div>
 
   <div class="card translator__result">
-    <h2>Recognized message</h2>
-    <div class="result-box" id="resultBox">
-      <p class="empty">No sign recognized yet.</p>
+    <header class="card__head"><h2>Your message</h2><span class="chip" id="modelStatus">Loading signs…</span></header>
+
+    <div class="result-box" id="resultBox" aria-live="polite">
+      <p class="empty">Signed words will appear here.</p>
     </div>
-    <div class="confidence" id="confidenceBar" hidden>
-      <span>Confidence</span>
-      <div class="confidence__track"><div class="confidence__fill" id="confidenceFill"></div></div>
-      <span id="confidenceValue"></span>
+    <div class="alts" id="alts" hidden>
+      <span class="muted small" id="altsLabel">Not this word? Tap the right one:</span>
+      <div class="alts__list" id="altsList"></div>
     </div>
-    <label class="field"><span>Edit message</span>
-      <textarea id="messageEdit" rows="3" placeholder="Correct the message if needed"></textarea>
+
+    <label class="field"><span>Message to the doctor</span>
+      <textarea id="messageEdit" rows="3" maxlength="2000" placeholder="Your signs build a message here. You can also type or fix words."></textarea>
     </label>
-    <button class="btn btn--primary btn--block" id="confirmSendBtn" disabled>Confirm and send to doctor</button>
+    <div class="translator__controls">
+      <button class="btn btn--ghost btn--sm" id="undoBtn" type="button" disabled>Remove last word</button>
+      <button class="btn btn--ghost btn--sm" id="clearBtn" type="button">Clear</button>
+    </div>
+    <button class="btn btn--primary btn--block btn--lg" id="confirmSendBtn" type="button" disabled>Send to doctor</button>
   </div>
 </section>
+
+<details class="card mt sign-index">
+  <summary><strong>Signs SignBridge understands</strong> <span class="muted small" id="signCount"></span></summary>
+  <label class="field mt"><span class="visually-hidden">Search signs</span><input type="search" id="signSearch" placeholder="Search, e.g. medicine"></label>
+  <div id="signIndex"></div>
+</details>
 {% endblock %}
 
 {% block scripts %}
-<!-- MediaPipe is bundled so the translator works without internet -->
-<script src="{{ url_for('static', filename='vendor/mediapipe/camera_utils.js') }}"></script>
-<script src="{{ url_for('static', filename='vendor/mediapipe/hands.js') }}"></script>
-
-<!-- Your Camera Logic -->
+<!-- MediaPipe Holistic is bundled locally so tracking works without internet -->
+<script src="{{ url_for('static', filename='vendor/holistic/holistic.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sign-model.js') }}"></script>
 <script src="{{ url_for('static', filename='js/camera.js') }}" defer></script>
 {% endblock %}

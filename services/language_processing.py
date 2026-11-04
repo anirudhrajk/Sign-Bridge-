@@ -12,16 +12,15 @@ def normalize(text):
     return " ".join((text or "").strip().split())
 
 
-def signs_to_sentence(sign_keys):
-    from services.sign_recognition import SUPPORTED_SIGNS
-    if not sign_keys: return ""
-    return " ".join(SUPPORTED_SIGNS.get(k, k) for k in sign_keys)
+def signs_to_sentence(sign_words):
+    if not sign_words: return ""
+    return " ".join(sign_words)
 
 
 def sentence_to_signs(sentence, phrases=None):
-    from services.sign_recognition import SUPPORTED_SIGNS
+    from services.sign_recognition import supported_signs
     text = (sentence or "").lower()
-    hits = [k for k in SUPPORTED_SIGNS if re.search(rf"\b{k}\b", text)]
+    hits = [k for k in supported_signs() if re.search(rf"\b{re.escape(k.lower())}\b", text)]
     if phrases:
         for p in phrases:
             label = p["text"] if isinstance(p, dict) else p.text
