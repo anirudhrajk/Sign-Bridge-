@@ -18,7 +18,14 @@ def seed_defaults():
     from services.emergency import get_default_phrases
     from services.dictionary import get_local_seed
 
-    if User.query.count() == 0:
+    from flask import current_app
+    demo_emails = ("patient@signbridge.app", "doctor@signbridge.app", "admin@signbridge.app")
+    if not current_app.config.get("DEMO_ACCOUNTS", True):
+        # Online: disable any demo accounts left in the database.
+        for u in User.query.filter(User.email.in_(demo_emails)).all():
+            u.is_active = False
+        db.session.commit()
+    elif User.query.count() == 0:
         patient = User(email="patient@signbridge.app", display_name="Demo Patient", role="patient")
         patient.set_password("patient123")
         doctor = User(email="doctor@signbridge.app", display_name="Dr. Demo Clinician", role="doctor")
@@ -124,7 +131,9 @@ def create_app(config_class=Config):
     @app.context_processor
     def inject_globals():
         return {"app_name": "SignBridge", "now": datetime.utcnow,
-                "google_enabled": bool(app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"])}
+                "google_enabled": bool(app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"]),
+                "demo_enabled": app.config["DEMO_ACCOUNTS"],
+                "clinician_code_required": bool(app.config["CLINICIAN_CODE"])}
 
     @app.cli.command("init-db")
     @with_appcontext

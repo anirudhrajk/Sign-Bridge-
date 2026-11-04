@@ -21,6 +21,9 @@
       <small>Doctor, nurse, or hospital staff.</small>
     </label>
   </fieldset>
+  {% if clinician_code_required %}
+  <label><span>Clinic code <small class="muted" style="font-weight:400">(clinicians only, from your clinic)</small></span><input type="text" name="clinic_code" autocomplete="off"></label>
+  {% endif %}
   <label><span>Full name</span><input type="text" name="display_name" required autocomplete="name"></label>
   <label><span>Email</span><input type="email" name="email" required autocomplete="email"></label>
   <label><span>Password</span><input type="password" name="password" minlength="8" required autocomplete="new-password" placeholder="At least 8 characters"></label>

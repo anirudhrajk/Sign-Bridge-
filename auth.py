@@ -21,6 +21,15 @@ def _safe_next(url):
     return url
 
 
+def _clinician_allowed(role):
+    """Clinicians can read patient messages, so an optional clinic code guards that role."""
+    code = current_app.config.get("CLINICIAN_CODE")
+    if role == "doctor" and code and not secrets.compare_digest((request.form.get("clinic_code") or "").strip(), code):
+        flash("That clinic code is not right. Ask your clinic administrator, or sign up as a patient.", "error")
+        return False
+    return True
+
+
 def _finish_login(user, remember=True, method="password"):
     user.last_login = datetime.utcnow()
     db.session.commit()
@@ -54,6 +63,8 @@ def register():
         role = request.form.get("role", "patient")
         if role not in ROLES:
             role = "patient"
+        if not _clinician_allowed(role):
+            return render_template("register.html")
         if not email or not name or len(password) < 8:
             flash("Provide a name, email, and a password of at least 8 characters.", "error")
             return render_template("register.html")
@@ -137,6 +148,8 @@ def choose_role():
         role = request.form.get("role")
         if role not in ROLES:
             flash("Choose how you will use SignBridge.", "error")
+            return render_template("choose_role.html", pending=pending)
+        if not _clinician_allowed(role):
             return render_template("choose_role.html", pending=pending)
         if not request.form.get("agree"):
             flash("Please accept the privacy terms to continue.", "error")

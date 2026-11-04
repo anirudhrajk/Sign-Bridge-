@@ -153,6 +153,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--limit", type=int, default=0, help="only this many recordings (for testing)")
+    ap.add_argument("--part", default="0/1", help="k/n: this process handles recordings with id %% n == k")
     ap.add_argument("--v2", action="store_true", help="keep 127 points (lips, eyes, nose) in data/asl/shards_v2")
     ap.add_argument("--clips", action="store_true",
                     help="fetch the full recordings listed in data/asl/clip_choices.json (for the avatar)")
@@ -202,6 +203,10 @@ def main():
     todo = sorted((e for e in entries if e[0].endswith(".parquet")
                    and int(Path(e[0]).stem) in meta and int(Path(e[0]).stem) not in have),
                   key=lambda e: e[1])
+    k, n_parts = (int(v) for v in args.part.split("/"))
+    # Each part takes its own contiguous stretch of the archive, so no bytes are read twice.
+    lo, hi = len(todo) * k // n_parts, len(todo) * (k + 1) // n_parts
+    todo = todo[lo:hi]
     if args.limit:
         todo = todo[:args.limit]
     print(f"{len(meta)} recordings, {len(have)} already done, {len(todo)} to fetch", flush=True)
@@ -223,10 +228,11 @@ def main():
     def flush():
         if not buf["seqs"]:
             return
-        n = len(list(SHARDS.glob("shard_*.npz")))
+        n = len(list(SHARDS.glob(f"shard_p{k}of{n_parts}_*.npz"))) if n_parts > 1 else len(list(SHARDS.glob("shard_*.npz")))
         arr = np.empty(len(buf["seqs"]), dtype=object)
         arr[:] = buf["seqs"]
-        np.savez_compressed(SHARDS / f"shard_{n:04d}.npz", seqs=arr,
+        name = f"shard_p{k}of{n_parts}_{n:04d}.npz" if n_parts > 1 else f"shard_{n:04d}.npz"
+        np.savez_compressed(SHARDS / name, seqs=arr,
                             sequence_id=np.array(buf["sequence_id"]),
                             participant_id=np.array(buf["participant_id"]),
                             sign=np.array(buf["sign"]))

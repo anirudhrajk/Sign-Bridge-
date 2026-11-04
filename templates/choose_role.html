@@ -21,6 +21,9 @@
       <small>Doctor, nurse, or hospital staff.</small>
     </label>
   </fieldset>
+  {% if clinician_code_required %}
+  <label><span>Clinic code <small class="muted" style="font-weight:400">(clinicians only, from your clinic)</small></span><input type="text" name="clinic_code" autocomplete="off"></label>
+  {% endif %}
   <label><span>Name shown to others</span><input type="text" name="display_name" value="{{ pending.name }}" maxlength="120" autocomplete="name"></label>
   <label class="check"><input type="checkbox" name="agree" value="1" required>
     <span style="font-weight:400;display:inline">I agree that SignBridge may use my camera to read signs on this device and store my conversation messages. I can change this any time in Settings.</span>
