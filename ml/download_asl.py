@@ -1,30 +1,32 @@
 """Download Google's ASL Signs dataset (Kaggle competition "asl-signs") and shrink it.
 
-Each recording is fetched, reduced to the 49 points the model uses (x/y, float16), and the
-original parquet is deleted right away. About 68 GB is downloaded, but only about 1 GB stays
-on disk. Safe to stop and re-run: finished recordings are skipped.
+Kaggle serves the competition as one large zip from cloud storage. Instead of saving the
+whole ~60 GB zip, we read its table of contents with HTTP range requests, then stream the
+archive in large chunks. Each recording is shrunk in memory to the 49 points the model uses
+(x/y, float16). Only about 1 GB is written to disk, and Kaggle's API is called just once
+(per-file API downloads hit its rate limit). Safe to stop and re-run: finished recordings
+are skipped.
 
-Needs your own Kaggle token in %USERPROFILE%\\.kaggle\\access_token and the competition rules
-accepted on kaggle.com. Run with Python 3.11+ (kaggle 2.x):
+Needs your own Kaggle token in %USERPROFILE%\\.kaggle\\access_token, and the competition
+rules accepted on kaggle.com. Run with Python 3.11+ (kaggle 2.x):
 
-  py -3.11 ml/download_asl.py [--workers 8] [--limit N]
+  py -3.11 ml/download_asl.py [--workers 6] [--limit N]
 
-Output: data/asl/raw_index/train.csv and data/asl/shards/shard_*.npz, then
-`python ml/prepare_data.py --lang asl` merges the shards into data/cache/asl/landmarks.npz.
+Then: python ml/prepare_data.py --lang asl  &&  python ml/train.py --lang asl
 """
 import argparse
 import csv
-import os
-import shutil
+import io
+import struct
 import sys
-import tempfile
 import threading
 import time
-import zipfile
+import zlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import numpy as np
+import requests
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -34,29 +36,109 @@ COMP = "asl-signs"
 OUT = ROOT / "data" / "asl"
 SHARDS = OUT / "shards"
 SHARD_SIZE = 2000
+CHUNK = 48 * 1024 * 1024  # bytes fetched per range request
 
 
-def api():
-    from kaggle.api.kaggle_api_extended import KaggleApi
-    a = KaggleApi()
-    a.authenticate()
-    return a
+class Archive:
+    """Read a remote zip through HTTP range requests. Refreshes the signed URL when it expires."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.session = requests.Session()
+        self.refresh()
+
+    def refresh(self):
+        from kaggle.api.kaggle_api_extended import KaggleApi
+        from kagglesdk.competitions.types.competition_api_service import ApiDownloadDataFilesRequest
+        api = KaggleApi()
+        api.authenticate()
+        for attempt in range(16):  # Kaggle rate limits can last an hour or more
+            try:
+                with api.build_kaggle_client() as k:
+                    req = ApiDownloadDataFilesRequest()
+                    req.competition_name = COMP
+                    resp = k.competitions.competition_api_client.download_data_files(req)
+                    self.url = resp.url
+                    resp.close()
+                break
+            except requests.HTTPError as e:
+                if attempt == 15:
+                    raise
+                wait = min(600, 60 * (attempt + 1))
+                print(f"Kaggle said {e.response.status_code if e.response is not None else e}; waiting {wait}s", flush=True)
+                time.sleep(wait)
+        r = self.session.get(self.url, headers={"Range": "bytes=0-0"}, timeout=60)
+        r.raise_for_status()
+        self.size = int(r.headers["Content-Range"].split("/")[1])
+
+    def read(self, start, length):
+        for attempt in range(6):
+            url = self.url
+            try:
+                r = self.session.get(url, headers={"Range": f"bytes={start}-{start + length - 1}"}, timeout=300)
+                if r.status_code in (400, 401, 403):  # signed URL expired
+                    with self.lock:
+                        if self.url == url:
+                            self.refresh()
+                    continue
+                r.raise_for_status()
+                if len(r.content) != length:
+                    raise IOError("short read")
+                return r.content
+            except (requests.RequestException, IOError):
+                if attempt == 5:
+                    raise
+                time.sleep(5 * (attempt + 1))
+
+    def entries(self):
+        """Parse the central directory: [(name, header_offset, comp_size, method)]."""
+        tail_len = min(self.size, 1 << 20)
+        tail = self.read(self.size - tail_len, tail_len)
+        eocd = tail.rfind(b"PK\x05\x06")
+        cd_size, cd_off = struct.unpack("<II", tail[eocd + 12:eocd + 20])
+        z64 = tail.rfind(b"PK\x06\x06")
+        if z64 != -1:  # zip64 end of central directory
+            cd_size, cd_off = struct.unpack("<QQ", tail[z64 + 40:z64 + 56])
+        cd = self.read(cd_off, cd_size)
+        out, p = [], 0
+        while p + 46 <= len(cd) and cd[p:p + 4] == b"PK\x01\x02":
+            method, = struct.unpack("<H", cd[p + 10:p + 12])
+            csize, usize = struct.unpack("<II", cd[p + 20:p + 28])
+            nlen, xlen, clen = struct.unpack("<HHH", cd[p + 28:p + 34])
+            off, = struct.unpack("<I", cd[p + 42:p + 46])
+            name = cd[p + 46:p + 46 + nlen].decode("utf-8", "replace")
+            extra = cd[p + 46 + nlen:p + 46 + nlen + xlen]
+            if 0xFFFFFFFF in (csize, usize, off):  # zip64 sizes/offset live in the extra field
+                q = 0
+                while q + 4 <= len(extra):
+                    hid, hlen = struct.unpack("<HH", extra[q:q + 4])
+                    if hid == 1:
+                        vals, r = [], q + 4
+                        for present in (usize == 0xFFFFFFFF, csize == 0xFFFFFFFF, off == 0xFFFFFFFF):
+                            if present:
+                                vals.append(struct.unpack("<Q", extra[r:r + 8])[0])
+                                r += 8
+                            else:
+                                vals.append(None)
+                        usize = vals[0] if vals[0] is not None else usize
+                        csize = vals[1] if vals[1] is not None else csize
+                        off = vals[2] if vals[2] is not None else off
+                    q += 4 + hlen
+            out.append((name, off, csize, method))
+            p += 46 + nlen + xlen + clen
+        return out
 
 
-def fetch(a, name, dest):
-    """Download one competition file into dest dir; unzip if Kaggle zipped it. Returns the path."""
-    a.competition_download_file(COMP, name, path=str(dest), quiet=True)
-    base = Path(name).name
-    p = dest / base
-    if p.exists():
-        return p
-    z = dest / (base + ".zip")
-    if z.exists():
-        with zipfile.ZipFile(z) as zf:
-            zf.extractall(dest)
-        z.unlink()
-        return dest / base
-    raise FileNotFoundError(name)
+def member_bytes(blob, base, off, csize, method):
+    """Extract one member's data from a fetched span that starts at byte `base`."""
+    h = off - base
+    nlen, xlen = struct.unpack("<HH", blob[h + 26:h + 30])
+    data = blob[h + 30 + nlen + xlen:h + 30 + nlen + xlen + csize]
+    if method == 0:
+        return data
+    if method == 8:
+        return zlib.decompress(data, -15)
+    raise ValueError(f"unsupported zip method {method}")
 
 
 def done_ids():
@@ -68,29 +150,48 @@ def done_ids():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--limit", type=int, default=0, help="only this many recordings (for testing)")
     args = ap.parse_args()
 
-    a = api()
-    (OUT / "raw_index").mkdir(parents=True, exist_ok=True)
     SHARDS.mkdir(parents=True, exist_ok=True)
+    (OUT / "raw_index").mkdir(parents=True, exist_ok=True)
+    arc = Archive()
+    print(f"archive size {arc.size / 1e9:.1f} GB", flush=True)
+    entries = arc.entries()
+    by_name = {e[0]: e for e in entries}
+
     index = OUT / "raw_index" / "train.csv"
     if not index.exists():
         for f in ("train.csv", "sign_to_prediction_index_map.json"):
-            shutil.move(str(fetch(a, f, Path(tempfile.mkdtemp()))), OUT / "raw_index" / f)
+            n, off, cs, m = by_name[f]
+            head = arc.read(off, 30 + 1024)
+            nlen, xlen = struct.unpack("<HH", head[26:30])
+            blob = arc.read(off, 30 + nlen + xlen + cs)
+            (OUT / "raw_index" / f).write_bytes(member_bytes(blob, off, off, cs, m))
+    meta = {int(r["sequence_id"]): r for r in csv.DictReader(index.open())}
 
-    rows = list(csv.DictReader(index.open()))
     have = done_ids()
-    todo = [r for r in rows if int(r["sequence_id"]) not in have]
+    todo = sorted((e for e in entries if e[0].endswith(".parquet")
+                   and int(Path(e[0]).stem) in meta and int(Path(e[0]).stem) not in have),
+                  key=lambda e: e[1])
     if args.limit:
         todo = todo[:args.limit]
-    print(f"{len(rows)} recordings, {len(have)} already done, {len(todo)} to fetch", flush=True)
+    print(f"{len(meta)} recordings, {len(have)} already done, {len(todo)} to fetch", flush=True)
+
+    # Group recordings into contiguous spans of about CHUNK bytes.
+    batches, cur = [], []
+    for e in todo:
+        if cur and (e[1] + e[2] + 1024 - cur[0][1] > CHUNK):
+            batches.append(cur)
+            cur = []
+        cur.append(e)
+    if cur:
+        batches.append(cur)
 
     lock = threading.Lock()
     buf = {"seqs": [], "sequence_id": [], "participant_id": [], "sign": []}
     stats = {"ok": 0, "fail": 0, "bytes": 0, "t0": time.time()}
-    local = threading.local()
 
     def flush():
         if not buf["seqs"]:
@@ -105,50 +206,50 @@ def main():
         for k in buf:
             buf[k].clear()
 
-    def work(r):
-        if not hasattr(local, "api"):
-            local.api = api()
-        tmp = Path(tempfile.mkdtemp(prefix="asl_"))
-        try:
-            for attempt in range(4):
-                try:
-                    p = fetch(local.api, r["path"], tmp)
-                    break
-                except Exception:
-                    if attempt == 3:
-                        raise
-                    time.sleep(2 * (attempt + 1))
-            size = p.stat().st_size
-            seq = load(p)
-            return r, seq, size
-        finally:
-            shutil.rmtree(tmp, ignore_errors=True)
+    def work(batch):
+        base = batch[0][1]
+        last = batch[-1]
+        blob = arc.read(base, last[1] + last[2] + 1024 - base if last[1] + last[2] + 1024 <= arc.size
+                        else arc.size - base)
+        results = []
+        for name, off, cs, m in batch:
+            try:
+                seq = load(io.BytesIO(member_bytes(blob, base, off, cs, m)))
+                results.append((int(Path(name).stem), seq))
+            except Exception:
+                results.append((int(Path(name).stem), None))
+        return results, len(blob)
 
     with ThreadPoolExecutor(args.workers) as ex:
-        futures = [ex.submit(work, r) for r in todo]
+        futures = [ex.submit(work, b) for b in batches]
         for i, fut in enumerate(as_completed(futures), 1):
             try:
-                r, seq, size = fut.result()
-            except Exception as e:  # keep going; a re-run retries failures
+                results, nbytes = fut.result()
+            except Exception as e:  # a re-run retries anything that failed
                 stats["fail"] += 1
-                if stats["fail"] <= 5:
-                    print("failed:", repr(e)[:200], flush=True)
+                print("batch failed:", repr(e)[:200], flush=True)
                 continue
             with lock:
-                buf["seqs"].append(seq)
-                buf["sequence_id"].append(int(r["sequence_id"]))
-                buf["participant_id"].append(int(r["participant_id"]))
-                buf["sign"].append(r["sign"])
-                stats["ok"] += 1
-                stats["bytes"] += size
-                if len(buf["seqs"]) >= SHARD_SIZE:
-                    flush()
-            if i % 500 == 0 or i == len(todo):
+                stats["bytes"] += nbytes
+                for sid, seq in results:
+                    if seq is None:
+                        stats["fail"] += 1
+                        continue
+                    r = meta[sid]
+                    buf["seqs"].append(seq)
+                    buf["sequence_id"].append(sid)
+                    buf["participant_id"].append(int(r["participant_id"]))
+                    buf["sign"].append(r["sign"])
+                    stats["ok"] += 1
+                    if len(buf["seqs"]) >= SHARD_SIZE:
+                        flush()
+            if i % 10 == 0 or i == len(batches):
                 el = time.time() - stats["t0"]
-                rate = stats["ok"] / el if el else 0
-                left = (len(todo) - i) / rate / 3600 if rate else 0
-                print(f"{i}/{len(todo)}  ok {stats['ok']}  failed {stats['fail']}  "
-                      f"{stats['bytes'] / 1e9:.1f} GB  {rate:.1f}/s  ~{left:.1f} h left", flush=True)
+                rate = stats["bytes"] / el if el else 0
+                left_gb = sum(b[-1][1] + b[-1][2] - b[0][1] for b in batches[i:]) / 1e9
+                eta = left_gb * 1e9 / rate / 3600 if rate else 0
+                print(f"{stats['ok']}/{len(todo)} recordings  {stats['bytes'] / 1e9:.1f} GB  "
+                      f"{rate / 1e6:.1f} MB/s  ~{eta:.1f} h left  failed {stats['fail']}", flush=True)
     with lock:
         flush()
     print("finished. Re-run to retry any failures." if stats["fail"] else "finished.", flush=True)
