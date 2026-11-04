@@ -19,7 +19,7 @@
     } catch (e) {}
   </script>
 </head>
-<body>
+<body data-role="{{ current_user.role if current_user.is_authenticated else '' }}">
 {% include "_icons.html" %}
 
 {% from "_macros.html" import avatar %}
@@ -42,6 +42,9 @@
         </a>
         <a class="nav__item {{ 'is-active' if ep == 'views.sign_translator' }}" href="{{ url_for('views.sign_translator') }}">
           <svg class="icon"><use href="#i-hand"/></svg> Sign to doctor
+        </a>
+        <a class="nav__item {{ 'is-active' if ep == 'views.pain_report' }}" href="{{ url_for('views.pain_report') }}">
+          <svg class="icon"><use href="#i-person"/></svg> Where it hurts
         </a>
         <a class="nav__item nav__item--danger {{ 'is-active' if ep == 'views.emergency' }}" href="{{ url_for('views.emergency') }}">
           <svg class="icon"><use href="#i-alert"/></svg> Emergency

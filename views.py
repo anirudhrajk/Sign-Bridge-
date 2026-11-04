@@ -61,6 +61,34 @@ def sign_translator():
     return render_template("sign_translator.html", languages=languages, lang=lang)
 
 
+@views_bp.route("/patient/pain")
+@login_required
+def pain_report():
+    _require_role("patient")
+    return render_template("pain_report.html")
+
+
+@views_bp.route("/patient/card")
+@login_required
+def deaf_card():
+    _require_role("patient")
+    return render_template("deaf_card.html", lang=resolve_language(current_user.sign_language),
+                           languages={x["code"]: x["name"] for x in available_languages()})
+
+
+@views_bp.route("/visit/<int:session_id>/summary")
+@login_required
+def visit_summary(session_id):
+    s = Session.query.get_or_404(session_id)
+    if current_user.role == "patient" and s.patient_id != current_user.id:
+        abort(403)
+    if current_user.role not in ("patient", "doctor", "admin"):
+        abort(403)
+    messages = Message.query.filter_by(session_id=s.id).order_by(Message.created_at).all()
+    log_action("summary_viewed", f"session {s.id}")
+    return render_template("visit_summary.html", session=s, messages=messages)
+
+
 @views_bp.route("/patient/emergency")
 @login_required
 def emergency():

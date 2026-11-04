@@ -15,11 +15,17 @@
     <div><strong>Emergency</strong><small>Big buttons, one tap to send</small></div>
     <svg class="icon arrow"><use href="#i-arrow"/></svg>
   </a>
-  <a class="stat" href="{{ url_for('views.dictionary') }}">
-    <svg class="icon"><use href="#i-book"/></svg>
-    <div><strong>Medical dictionary</strong><small>Learn common medical signs</small></div>
+  <a class="stat" href="{{ url_for('views.pain_report') }}">
+    <svg class="icon"><use href="#i-person"/></svg>
+    <div><strong>Where does it hurt?</strong><small>Tap the body and pain level</small></div>
     <svg class="icon arrow"><use href="#i-arrow"/></svg>
   </a>
+</section>
+
+<section class="tool-row">
+  <a class="btn btn--ghost" href="{{ url_for('views.deaf_card') }}"><svg class="icon"><use href="#i-hand"/></svg> My Deaf patient card</a>
+  <button class="btn btn--ghost" type="button" id="askInterpreter"><svg class="icon"><use href="#i-users"/></svg> Ask for an interpreter</button>
+  <a class="btn btn--ghost" href="{{ url_for('views.visit_summary', session_id=session.id) }}"><svg class="icon"><use href="#i-book"/></svg> Visit summary</a>
 </section>
 
 <section class="two-col">
@@ -60,6 +66,13 @@
 <script src="{{ url_for('static', filename='js/avatar.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sign-planner.js') }}"></script>
 <script src="{{ url_for('static', filename='js/avatar-ui.js') }}"></script>
-<script>document.getElementById('avatarBadge').textContent = '{{ avatar_lang|upper }}';</script>
+<script>
+document.getElementById('avatarBadge').textContent = '{{ avatar_lang|upper }}';
+document.getElementById('askInterpreter').addEventListener('click', async e => {
+  e.currentTarget.disabled = true;
+  if (await SignBridge.sendMessage('I am Deaf. Please book a sign language interpreter for me.', 'request')) SignBridge.toast('Staff have been asked for an interpreter.');
+  else e.currentTarget.disabled = false;
+});
+</script>
 <script src="{{ url_for('static', filename='js/live.js') }}" defer></script>
 {% endblock %}

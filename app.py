@@ -64,6 +64,16 @@ def upgrade_schema():
         if "sign_language" not in cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN sign_language VARCHAR(8) DEFAULT 'isl'"))
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users (google_sub)"))
+    added = {
+        "sessions": {"called_at": "DATETIME", "call_room": "VARCHAR(40)"},
+        "messages": {"understood": "VARCHAR(12)"},
+    }
+    for table, columns in added.items():
+        have = {c["name"] for c in inspect(db.engine).get_columns(table)}
+        with db.engine.begin() as conn:
+            for name, kind in columns.items():
+                if name not in have:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {kind}"))
 
 
 def create_app(config_class=Config):

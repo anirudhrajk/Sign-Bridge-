@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from extensions import db
@@ -48,7 +50,7 @@ def create_message():
     if len(body) > 2000:
         return jsonify({"error": "message is too long"}), 400
     source = payload.get("source", "text")
-    if source not in ("sign", "speech", "text", "emergency"):
+    if source not in ("sign", "speech", "text", "emergency", "pain", "request"):
         source = "text"
     if current_user.role == "patient":
         s = _open_session_for_patient()
@@ -93,9 +95,60 @@ def list_messages(session_id):
     return jsonify({"messages": [
         {"id": m.id, "direction": m.direction, "source": m.source, "body": m.body,
          "sender": m.sender.display_name, "sender_role": m.sender.role,
-         "confirmed": m.confirmed, "created_at": m.created_at.strftime("%d %b %H:%M")}
+         "confirmed": m.confirmed, "understood": m.understood,
+         "created_at": m.created_at.strftime("%d %b %H:%M")}
         for m in msgs
-    ]})
+    ], "call": {"at": s.called_at.isoformat() + "Z", "room": s.call_room} if s.called_at else None})
+
+
+FEEDBACK = {
+    "understood": None,
+    "repeat": "Please repeat that. I did not understand.",
+    "simpler": "Please say that more simply.",
+}
+
+
+@api_bp.post("/messages/<int:message_id>/feedback")
+@login_required
+def message_feedback(message_id):
+    """The patient says whether they understood a doctor's message."""
+    m = Message.query.get_or_404(message_id)
+    if current_user.role != "patient" or m.session.patient_id != current_user.id or m.direction != "doctor_to_patient":
+        return jsonify({"error": "forbidden"}), 403
+    answer = (request.get_json(silent=True) or {}).get("answer")
+    if answer not in FEEDBACK:
+        return jsonify({"error": "unknown answer"}), 400
+    m.understood = answer
+    if FEEDBACK[answer]:  # also tell the doctor in the conversation
+        db.session.add(Message(session_id=m.session_id, sender_id=current_user.id, direction="patient_to_doctor",
+                               source="request", body=FEEDBACK[answer], confirmed=True))
+    db.session.commit()
+    log_action("message_feedback", f"{answer} on message {m.id}")
+    return jsonify({"ok": True})
+
+
+@api_bp.get("/me/call")
+@login_required
+def my_call():
+    """The current patient's latest 'your turn' call, polled from every page."""
+    if current_user.role != "patient":
+        return jsonify({"call": None})
+    s = Session.query.filter_by(patient_id=current_user.id, status="open").first()
+    return jsonify({"call": {"at": s.called_at.isoformat() + "Z", "room": s.call_room} if s and s.called_at else None})
+
+
+@api_bp.post("/sessions/<int:session_id>/call")
+@login_required
+def call_patient(session_id):
+    """Show the patient a full-screen, vibrating 'it's your turn' alert."""
+    if current_user.role not in ("doctor", "admin"):
+        return jsonify({"error": "forbidden"}), 403
+    s = Session.query.get_or_404(session_id)
+    s.called_at = datetime.utcnow()
+    s.call_room = ((request.get_json(silent=True) or {}).get("room") or "").strip()[:40] or None
+    db.session.commit()
+    log_action("patient_called", f"session {s.id} room {s.call_room or '-'}")
+    return jsonify({"ok": True, "at": s.called_at.isoformat() + "Z"})
 
 
 @api_bp.post("/consent/<purpose>")

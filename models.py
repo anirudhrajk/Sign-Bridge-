@@ -47,6 +47,9 @@ class Session(db.Model):
     status = db.Column(db.String(20), default="open")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     closed_at = db.Column(db.DateTime)
+    # Visual "your turn" alert: deaf patients cannot hear their name being called.
+    called_at = db.Column(db.DateTime)
+    call_room = db.Column(db.String(40))
 
     patient = db.relationship("User", foreign_keys=[patient_id])
     doctor = db.relationship("User", foreign_keys=[doctor_id])
@@ -63,6 +66,8 @@ class Message(db.Model):
     body = db.Column(db.Text, nullable=False)
     confirmed = db.Column(db.Boolean, default=False)
     confidence = db.Column(db.Float)
+    # Patient's answer to a doctor's message: understood | repeat | simpler
+    understood = db.Column(db.String(12))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     sender = db.relationship("User", foreign_keys=[sender_id])

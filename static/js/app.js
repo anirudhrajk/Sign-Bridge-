@@ -62,4 +62,38 @@ function toast(message) {
   setTimeout(() => el.remove(), 3200);
 }
 
-window.SignBridge = { sendMessage, toast };
+// Full-screen, vibrating "it's your turn" alert: deaf patients cannot hear their name called.
+function showCall(call) {
+  let o = document.getElementById('callOverlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.className = 'call-overlay';
+    o.id = 'callOverlay';
+    o.setAttribute('role', 'alertdialog');
+    o.innerHTML = '<div class="call-overlay__card"><svg class="icon" style="width:56px;height:56px"><use href="#i-person"/></svg>' +
+      '<h2>It’s your turn</h2><p data-room></p><button class="btn btn--primary btn--lg" type="button">I’m coming</button></div>';
+    o.querySelector('button').addEventListener('click', () => { o.hidden = true; try { navigator.vibrate?.(0); } catch (e) {} });
+    document.body.append(o);
+  }
+  o.querySelector('[data-room]').textContent = call.room ? `Please go to ${call.room}.` : 'Please go to the doctor now.';
+  o.hidden = false;
+  try { navigator.vibrate?.([400, 200, 400, 200, 800]); } catch (e) {}
+  document.title = 'Your turn · SignBridge';
+}
+
+// Patients get the alert on every page, not only the home screen.
+(() => {
+  if (document.body.dataset.role !== 'patient' || document.querySelector('[data-live-messages]')) return;
+  let last = null;
+  const check = async () => {
+    try {
+      const { call } = await fetch('/api/me/call').then(r => r.json());
+      if (call && call.at !== last && (last !== null || Date.now() - Date.parse(call.at) < 120000)) showCall(call);
+      last = call ? call.at : '';
+    } catch (e) {}
+  };
+  check();
+  setInterval(check, 4000);
+})();
+
+window.SignBridge = { sendMessage, toast, showCall };

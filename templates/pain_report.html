@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Where does it hurt? · SignBridge{% endblock %}
+{% block page_title %}Where does it hurt?{% endblock %}
+{% block page_sub %}Tap where it hurts, choose how bad it is, and send. No signing or typing needed.{% endblock %}
+{% block content %}
+<section class="pain">
+  <div class="card pain__body">
+    <p class="section-title">1 · Tap where it hurts <span class="muted" style="text-transform:none;letter-spacing:0">(tap more than one if needed)</span></p>
+    <svg viewBox="0 0 200 400" class="bodymap" role="group" aria-label="Body map">
+      <g class="bodymap__shape">
+        <ellipse cx="100" cy="38" rx="25" ry="29"/><rect x="88" y="64" width="24" height="14" rx="5"/>
+        <path d="M58 82 Q100 72 142 82 L148 182 Q100 192 52 182 Z"/><path d="M54 184 Q100 194 146 184 L150 214 Q100 222 50 214 Z"/>
+        <path d="M58 84 L36 92 L24 178 L38 180 L50 112 Z"/><path d="M142 84 L164 92 L176 178 L162 180 L150 112 Z"/>
+        <path d="M24 180 L38 182 L36 214 L20 212 Z"/><path d="M176 180 L162 182 L164 214 L180 212 Z"/>
+        <path d="M52 216 L98 222 L94 380 L70 380 Z"/><path d="M148 216 L102 222 L106 380 L130 380 Z"/>
+      </g>
+      {% for id, label, shape in [
+        ('head', 'head', '<ellipse cx="100" cy="38" rx="25" ry="29"/>'),
+        ('throat', 'throat', '<rect x="86" y="64" width="28" height="16" rx="5"/>'),
+        ('chest', 'chest', '<path d="M60 84 Q100 74 140 84 L144 130 L56 130 Z"/>'),
+        ('stomach', 'stomach', '<path d="M56 132 L144 132 L148 184 Q100 192 52 184 Z"/>'),
+        ('lower belly', 'lower belly', '<path d="M54 186 Q100 196 146 186 L150 214 Q100 222 50 214 Z"/>'),
+        ('right arm', 'right arm', '<path d="M58 84 L36 92 L24 178 L38 180 L50 112 Z"/>'),
+        ('left arm', 'left arm', '<path d="M142 84 L164 92 L176 178 L162 180 L150 112 Z"/>'),
+        ('right hand', 'right hand', '<path d="M22 180 L40 182 L38 216 L18 214 Z"/>'),
+        ('left hand', 'left hand', '<path d="M178 180 L160 182 L162 216 L182 214 Z"/>'),
+        ('right leg', 'right leg', '<path d="M52 216 L98 222 L94 380 L70 380 Z"/>'),
+        ('left leg', 'left leg', '<path d="M148 216 L102 222 L106 380 L130 380 Z"/>'),
+      ] %}
+      <g class="bodymap__part" data-part="{{ id }}" tabindex="0" role="checkbox" aria-checked="false" aria-label="{{ label }}">{{ shape|safe }}</g>
+      {% endfor %}
+    </svg>
+    <p class="muted small" style="text-align:center;margin:6px 0 0">Your right side is on the left of the picture, as if facing you.</p>
+  </div>
+
+  <div class="card">
+    <p class="section-title">2 · How bad is it?</p>
+    <div class="pain-scale" role="radiogroup" aria-label="Pain level">
+      {% for n, face, word in [(0,'😀','No pain'),(2,'🙂','A little'),(4,'😐','Some'),(6,'😟','A lot'),(8,'😣','Very bad'),(10,'😭','Worst ever')] %}
+      <button type="button" class="pain-scale__btn" data-level="{{ n }}" role="radio" aria-checked="false">
+        <span class="pain-scale__face" aria-hidden="true">{{ face }}</span><strong>{{ n }}</strong><small>{{ word }}</small>
+      </button>
+      {% endfor %}
+    </div>
+
+    <p class="section-title mt">3 · Since when?</p>
+    <div class="alts__list" id="since">
+      {% for s in ['a few minutes', 'a few hours', 'today', 'yesterday', 'a few days', 'a week or more'] %}
+      <button type="button" class="chip alt" data-since="{{ s }}">{{ s|capitalize }}</button>
+      {% endfor %}
+    </div>
+
+    <p class="section-title mt">4 · What kind of pain? <span class="muted" style="text-transform:none;letter-spacing:0">(optional)</span></p>
+    <div class="alts__list" id="kind">
+      {% for k in ['sharp', 'dull ache', 'burning', 'throbbing', 'pressure', 'comes and goes'] %}
+      <button type="button" class="chip alt" data-kind="{{ k }}">{{ k|capitalize }}</button>
+      {% endfor %}
+    </div>
+
+    <div class="result-box mt" aria-live="polite"><p id="painPreview" class="empty">Your message will appear here.</p></div>
+    <button class="btn btn--primary btn--block btn--lg" id="painSend" type="button" disabled>Send to doctor</button>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const parts = new Set(); let level = null, since = null, kind = null;
+  const preview = document.getElementById('painPreview'), send = document.getElementById('painSend');
+  const join = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a.at(-1);
+  function text() {
+    if (!parts.size || level === null) return '';
+    let s = level === 0 ? `No pain now in my ${join([...parts])}` : `I have pain in my ${join([...parts])}. It is ${level} out of 10`;
+    s += '.';
+    if (kind && level > 0) s += kind === 'comes and goes' ? ' It comes and goes.' : ` It feels like ${kind === 'pressure' ? 'pressure' : 'a ' + kind + ' pain'}.`;
+    if (since && level > 0) s += ` It started ${since === 'today' || since === 'yesterday' ? since : since + ' ago'}.`;
+    return s;
+  }
+  function update() {
+    const t = text();
+    preview.textContent = t || 'Tap where it hurts and how bad it is.';
+    preview.className = t ? '' : 'empty';
+    send.disabled = !t;
+  }
+  document.querySelectorAll('.bodymap__part').forEach(g => {
+    const toggle = () => {
+      const p = g.dataset.part, on = !parts.has(p);
+      on ? parts.add(p) : parts.delete(p);
+      g.classList.toggle('is-on', on); g.setAttribute('aria-checked', on);
+      update();
+    };
+    g.addEventListener('click', toggle);
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  });
+  document.querySelectorAll('.pain-scale__btn').forEach(b => b.addEventListener('click', () => {
+    level = Number(b.dataset.level);
+    document.querySelectorAll('.pain-scale__btn').forEach(x => { x.classList.toggle('is-on', x === b); x.setAttribute('aria-checked', x === b); });
+    update();
+  }));
+  const pick = (sel, attr, set) => document.querySelectorAll(sel).forEach(b => b.addEventListener('click', () => {
+    const v = b.dataset[attr], on = !b.classList.contains('is-on');
+    document.querySelectorAll(sel).forEach(x => x.classList.remove('is-on'));
+    if (on) b.classList.add('is-on');
+    set(on ? v : null); update();
+  }));
+  pick('[data-since]', 'since', v => since = v);
+  pick('[data-kind]', 'kind', v => kind = v);
+  send.addEventListener('click', async () => {
+    send.disabled = true;
+    const ok = await SignBridge.sendMessage(text(), level >= 8 ? 'emergency' : 'pain');
+    if (ok) { SignBridge.toast('Sent to your doctor.'); setTimeout(() => location.href = '/patient', 900); }
+    else send.disabled = false;
+  });
+})();
+</script>
+{% endblock %}
