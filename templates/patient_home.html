@@ -32,6 +32,14 @@
         data-empty="No messages yet. Tap 'Sign to your doctor' to start."></ul>
   </div>
 
+  <div style="display:grid;gap:18px">
+  <div class="card">
+    <header class="card__head"><h2>Your doctor, in sign</h2><span class="chip chip--soft" id="avatarBadge">ISL</span></header>
+    {% set avatar_id = 'patientAvatar' %}
+    {% set avatar_hint = "When your doctor replies, it will be signed here." %}
+    {% include "_avatar.html" %}
+  </div>
+
   <div class="card">
     <header class="card__head"><h2>Quick phrases</h2><span class="muted small">Sends instantly</span></header>
     <div class="quick-grid">
@@ -44,9 +52,14 @@
     </div>
     <a class="btn btn--ghost btn--block mt" href="{{ url_for('views.emergency') }}">Open emergency screen</a>
   </div>
+  </div>
 </section>
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/avatar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sign-planner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/avatar-ui.js') }}"></script>
+<script>document.getElementById('avatarBadge').textContent = '{{ avatar_lang|upper }}';</script>
 <script src="{{ url_for('static', filename='js/live.js') }}" defer></script>
 {% endblock %}

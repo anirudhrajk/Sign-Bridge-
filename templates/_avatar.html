@@ -1,0 +1,25 @@
+{# Signing avatar. Include with `avatar_lang` set; control it from JS with element.say(text). #}
+<div class="avatar" data-avatar data-lang="{{ avatar_lang or 'isl' }}" {% if avatar_id %}id="{{ avatar_id }}"{% endif %}>
+  <div class="avatar__stage">
+    <canvas class="avatar__canvas" aria-label="Signing avatar" role="img"></canvas>
+    <div class="avatar__loading" data-avatar-loading>Loading signer…</div>
+  </div>
+  <div class="avatar__caption" data-avatar-caption aria-live="polite">
+    <span class="muted small">{{ avatar_hint or 'Messages will be signed here.' }}</span>
+  </div>
+  <div class="avatar__controls">
+    <button class="btn btn--ghost btn--sm" type="button" data-avatar-replay disabled>
+      <svg class="icon"><use href="#i-arrow"/></svg> Replay
+    </button>
+    <label class="avatar__opt"><span class="visually-hidden">Speed</span>
+      <select data-avatar-speed aria-label="Signing speed">
+        <option value="0.6">Slow</option><option value="0.85" selected>Normal</option><option value="1.1">Fast</option>
+      </select>
+    </label>
+    <label class="avatar__opt"><span class="visually-hidden">Signer</span>
+      <select data-avatar-tone aria-label="Signer appearance">
+        <option value="warm">Signer 1</option><option value="light">Signer 2</option><option value="deep">Signer 3</option>
+      </select>
+    </label>
+  </div>
+</div>

@@ -5,7 +5,7 @@ from models import Session, Message, MedicalSign, Phrase, AuditLog, User
 from services.emergency import get_default_phrases
 from services.dictionary import get_local_seed
 from services.audit import log_action
-from services.sign_recognition import available_languages, resolve_language
+from services.sign_recognition import available_languages, resolve_language, avatar_language
 from services.consent import consent_status, has_consent
 from datetime import datetime, timedelta
 
@@ -45,6 +45,7 @@ def patient_home():
     messages = Message.query.filter_by(session_id=open_session.id).order_by(Message.created_at.desc()).limit(10).all()
     consent_camera = has_consent(current_user.id, "camera_capture")
     return render_template("patient_home.html", session=open_session, messages=messages,
+                           avatar_lang=avatar_language(current_user.sign_language),
                            emergency=get_default_phrases(), consent_camera=consent_camera)
 
 

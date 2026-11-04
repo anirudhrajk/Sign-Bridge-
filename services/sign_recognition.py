@@ -41,6 +41,12 @@ def resolve_language(code):
     return code if code in codes else DEFAULT_LANGUAGE
 
 
+def avatar_language(code):
+    """The sign language the avatar should use: the requested one if its clips exist."""
+    signs = MODELS_DIR.parent / "signs"
+    return code if code and (signs / code / "clips.json").exists() else DEFAULT_LANGUAGE
+
+
 def supported_signs(code=DEFAULT_LANGUAGE):
     m = _manifest(resolve_language(code)) or {}
     return m.get("labels") or m.get("classes", [])

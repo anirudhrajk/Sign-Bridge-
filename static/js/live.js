@@ -4,6 +4,9 @@
   if (!list) return;
   const sessionId = list.dataset.sessionId;
   let lastSignature = null;
+  let lastSeenId = null;
+  // On the patient's screen, new messages from the doctor are signed automatically.
+  const avatar = list.dataset.viewer === 'patient' ? document.getElementById('patientAvatar') : null;
 
   const SOURCE_LABEL = { sign: 'Signed', speech: 'Spoken', text: 'Typed', emergency: 'Emergency' };
 
@@ -19,12 +22,20 @@
       body.className = 'message__body';
       const tag = document.createElement('span');
       tag.className = 'message-tag';
-      tag.textContent = `${m.sender} · ${SOURCE_LABEL[m.source] || m.source}`;
+      tag.textContent = `${m.sender} Â· ${SOURCE_LABEL[m.source] || m.source}`;
       const text = document.createElement('p');
       text.textContent = m.body;
       const meta = document.createElement('small');
       meta.textContent = m.created_at;
       body.append(tag, text, meta);
+      if (fromStaff && avatar) {
+        const watch = document.createElement('button');
+        watch.type = 'button';
+        watch.className = 'btn btn--quiet btn--sm bubble-sign';
+        watch.textContent = 'Watch in sign';
+        watch.addEventListener('click', () => avatar.say(m.body));
+        body.append(watch);
+      }
       item.append(dot, body);
       return item;
     }));
@@ -45,6 +56,10 @@
       if (signature !== lastSignature) {
         lastSignature = signature;
         render(messages);
+        const newest = messages.filter(m => m.sender_role !== 'patient').at(-1);
+        if (avatar && newest && lastSeenId !== null && newest.id > lastSeenId) avatar.say(newest.body);
+        if (newest) lastSeenId = Math.max(lastSeenId ?? 0, newest.id);
+        else if (lastSeenId === null) lastSeenId = 0;
       }
     } catch (e) { /* try again on the next tick */ }
   }

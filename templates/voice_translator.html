@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Voice translator — SignBridge{% endblock %}
-{% block page_title %}Voice translator{% endblock %}
-{% block page_sub %}Speak or type a short message, check it, then send it to the patient's screen.{% endblock %}
+{% block title %}Speak to patient · SignBridge{% endblock %}
+{% block page_title %}Speak to patient{% endblock %}
+{% block page_sub %}Speak or type a short message. Preview how it will be signed, then send it to the patient's screen.{% endblock %}
 {% block content %}
 
 <section class="translator">
@@ -12,8 +12,8 @@
       <button class="btn btn--ghost" id="stopSpeechBtn" type="button" disabled>Stop</button>
     </div>
     <p class="muted small" id="speechStatus">Speech needs Chrome or Edge with internet. Typing always works.</p>
-    <label class="field"><span>Transcript</span>
-      <textarea id="transcript" rows="4" maxlength="2000" placeholder="Speak or type a message"></textarea>
+    <label class="field"><span>Message</span>
+      <textarea id="transcript" rows="4" maxlength="2000" placeholder="e.g. Take this medicine tomorrow morning"></textarea>
     </label>
     <label class="field"><span>Quick phrase</span>
       <select id="phrasePicker">
@@ -21,26 +21,30 @@
         {% for p in phrases if not p.is_emergency %}<option value="{{ p.text }}">{{ p.text }}</option>{% endfor %}
       </select>
     </label>
-    <button class="btn btn--ghost btn--block" id="translateBtn" type="button">Find matching signs</button>
+    <p class="muted small" style="margin:0">Short, simple sentences sign best. Words without a sign are shown to the patient as text.</p>
   </div>
 
   <div class="card">
-    <h2>Send to patient</h2>
-    <div class="video-placeholder" id="videoPlaceholder">
-      <p class="empty">Matching signs will appear here.</p>
-    </div>
-    <video id="islVideo" controls hidden></video>
-    <label class="field"><span>Patient session</span>
+    <header class="card__head"><h2>How the patient will see it</h2>
+      <button class="btn btn--ghost btn--sm" id="translateBtn" type="button">Preview in sign</button>
+    </header>
+    {% set avatar_id = 'doctorAvatar' %}
+    {% set avatar_hint = 'Type or speak a message, then press Preview.' %}
+    {% include "_avatar.html" %}
+    <label class="field mt"><span>Patient</span>
       <select id="sessionPicker">
         <option value="">Choose a patient</option>
         {% for s in sessions %}<option value="{{ s.id }}" {{ 'selected' if s.id == selected_id }}>{{ s.patient.display_name }}</option>{% endfor %}
       </select>
     </label>
-    <button class="btn btn--primary btn--block" id="sendToPatientBtn" type="button">Send to patient</button>
+    <button class="btn btn--primary btn--block btn--lg" id="sendToPatientBtn" type="button">Send to patient</button>
   </div>
 </section>
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/avatar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sign-planner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/avatar-ui.js') }}"></script>
 <script src="{{ url_for('static', filename='js/speech.js') }}" defer></script>
 {% endblock %}
