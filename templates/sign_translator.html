@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Sign translator — SignBridge{% endblock %}
 {% block page_title %}Sign translator{% endblock %}
-{% block page_sub %}Perform a supported ISL sign in front of the camera. Review and confirm the text before sending.{% endblock %}
+{% block page_sub %}Show one of the hand signs below to the camera. Check the text before sending it.{% endblock %}
 {% block content %}
 
 <section class="translator">
@@ -16,7 +16,12 @@
       <button class="btn btn--ghost" id="stopCameraBtn" disabled>Stop</button>
       <button class="btn btn--ghost" id="recognizeBtn" disabled>Recognize sign</button>
     </div>
-    <p class="muted small">Supported signs: {{ supported|join(', ') }}.</p>
+    <ul class="gesture-list">
+      {% for g in guide %}
+      <li><strong>{{ g.gesture }}</strong><span>{{ g.message }}</span></li>
+      {% endfor %}
+    </ul>
+    <p class="muted small">Demo hand shapes for this prototype. Full ISL recognition is still to come.</p>
   </div>
 
   <div class="card translator__result">
@@ -38,11 +43,9 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- MediaPipe CDN Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<!-- MediaPipe is bundled so the translator works without internet -->
+<script src="{{ url_for('static', filename='vendor/mediapipe/camera_utils.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/mediapipe/hands.js') }}"></script>
 
 <!-- Your Camera Logic -->
 <script src="{{ url_for('static', filename='js/camera.js') }}" defer></script>

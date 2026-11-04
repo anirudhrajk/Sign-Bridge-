@@ -1,28 +1,42 @@
 {% extends "base.html" %}
 {% block title %}Voice translator — SignBridge{% endblock %}
 {% block page_title %}Voice translator{% endblock %}
-{% block page_sub %}Speak or type a short message. The app finds an approved ISL phrase and plays the matching video.{% endblock %}
+{% block page_sub %}Speak or type a short message, check it, then send it to the patient's screen.{% endblock %}
 {% block content %}
 
 <section class="translator">
   <div class="card">
-    <h2>Doctor input</h2>
+    <h2>Your message</h2>
     <div class="translator__controls">
-      <button class="btn btn--primary" id="startSpeechBtn"><svg class="icon"><use href="#i-mic"/></svg> Start speaking</button>
-      <button class="btn btn--ghost" id="stopSpeechBtn" disabled>Stop</button>
+      <button class="btn btn--primary" id="startSpeechBtn" type="button"><svg class="icon"><use href="#i-mic"/></svg> Start speaking</button>
+      <button class="btn btn--ghost" id="stopSpeechBtn" type="button" disabled>Stop</button>
     </div>
+    <p class="muted small" id="speechStatus">Speech needs Chrome or Edge with internet. Typing always works.</p>
     <label class="field"><span>Transcript</span>
-      <textarea id="transcript" rows="4" placeholder="Speak or type a message"></textarea>
+      <textarea id="transcript" rows="4" maxlength="2000" placeholder="Speak or type a message"></textarea>
     </label>
-    <button class="btn btn--primary btn--block" id="translateBtn">Translate to ISL video</button>
+    <label class="field"><span>Quick phrase</span>
+      <select id="phrasePicker">
+        <option value="">Choose a saved phrase</option>
+        {% for p in phrases if not p.is_emergency %}<option value="{{ p.text }}">{{ p.text }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn btn--ghost btn--block" id="translateBtn" type="button">Find matching signs</button>
   </div>
 
   <div class="card">
-    <h2>ISL display</h2>
+    <h2>Send to patient</h2>
     <div class="video-placeholder" id="videoPlaceholder">
-      <p class="empty">Approved ISL video will appear here.</p>
+      <p class="empty">Matching signs will appear here.</p>
     </div>
     <video id="islVideo" controls hidden></video>
+    <label class="field"><span>Patient session</span>
+      <select id="sessionPicker">
+        <option value="">Choose a patient</option>
+        {% for s in sessions %}<option value="{{ s.id }}" {{ 'selected' if s.id == selected_id }}>{{ s.patient.display_name }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn btn--primary btn--block" id="sendToPatientBtn" type="button">Send to patient</button>
   </div>
 </section>
 {% endblock %}

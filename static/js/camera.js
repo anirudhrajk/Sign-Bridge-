@@ -55,7 +55,7 @@
       stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
       video.srcObject = stream;
       
-      hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+      hands = new Hands({locateFile: (file) => `/static/vendor/mediapipe/${file}`});
       hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
       hands.onResults(onResults);
 
@@ -119,8 +119,8 @@
       const data = await res.json();
       lastResult = data;
       
-      if (data.sign !== "none" && data.confidence > 0.65) {
-        resultBox.innerHTML = `<p>${data.message}</p>`;
+      if (data.sign !== "none" && data.confidence >= 0.6) {
+        resultBox.textContent = data.message;
         messageEdit.value = data.message;
         confidenceBar.hidden = false;
         confidenceFill.style.width = Math.round(data.confidence * 100) + '%';
@@ -142,7 +142,6 @@
 
   recognizeBtn?.addEventListener('click', () => {
     if (stream) {
-      landmarkBuffer = []; // clear buffer to start fresh
       analyzeBuffer();
     }
   });
@@ -159,12 +158,12 @@
       SignBridge.toast('Message sent to doctor.');
       confirmSendBtn.textContent = 'Sent!';
       setTimeout(() => {
-        confirmSendBtn.textContent = 'Confirm and send';
-        landmarkBuffer = []; 
+        confirmSendBtn.textContent = 'Confirm and send to doctor';
+        landmarkBuffer = [];
       }, 2000);
     } else {
       confirmSendBtn.disabled = false;
-      confirmSendBtn.textContent = 'Confirm and send';
+      confirmSendBtn.textContent = 'Confirm and send to doctor';
     }
   });
 

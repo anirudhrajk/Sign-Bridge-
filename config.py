@@ -11,4 +11,5 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
+    MESSAGE_RETENTION_DAYS = int(os.environ.get("MESSAGE_RETENTION_DAYS", 90))
     UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "static", "uploads")

@@ -257,3 +257,30 @@ p { margin: 0 0 .8em; }
   font-size: .85rem; box-shadow: var(--shadow); animation: slideIn .2s ease;
 }
 @keyframes slideIn { from { transform: translateY(8px); opacity: 0; } }
+/* Welcome page */
+.hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px; align-items: center; max-width: 1040px; margin: 48px auto; }
+.hero__copy h1 { font-size: clamp(2rem, 4vw, 3rem); line-height: 1.12; margin: 0 0 16px; }
+.hero__copy p { font-size: 1.1rem; color: var(--muted, #52605c); margin: 0 0 24px; }
+.hero__actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.hero__steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: step; }
+.hero__steps li { counter-increment: step; position: relative; padding: 16px 16px 16px 60px; background: #fff; border: 1px solid #dfe6e3; border-radius: 12px; }
+.hero__steps li::before { content: counter(step); position: absolute; left: 16px; top: 16px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); font-weight: 700; }
+.hero__steps strong, .hero__steps span { display: block; }
+.hero__steps span { color: var(--muted, #52605c); font-size: .92rem; }
+
+/* Sign guide and sessions */
+.gesture-list { list-style: none; margin: 16px 0 8px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.gesture-list li { padding: 8px 12px; background: var(--primary-soft); border-radius: 8px; }
+.gesture-list strong, .gesture-list span { display: block; }
+.gesture-list span { font-size: .85rem; }
+.session-row { align-items: center; }
+.session-row .message__body { flex: 1; }
+.message-list[data-live-messages] .message p { font-size: 1.1rem; }
+
+/* Accessibility settings */
+html.a11y-large { font-size: 118%; }
+html.a11y-contrast { --primary: #003b32; --primary-soft: #fff; --muted: #000; filter: contrast(1.25); }
+html.a11y-motion *, html.a11y-motion *::before { animation: none !important; transition: none !important; }
+
+@media (max-width: 800px) { .hero { grid-template-columns: 1fr; margin: 16px auto; gap: 24px; } }
+.confidence[hidden] { display: none; }

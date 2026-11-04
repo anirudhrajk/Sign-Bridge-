@@ -1,12 +1,12 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, abort, jsonify
 from flask_login import login_required, current_user
 from extensions import db
-from models import Session, Message, MedicalSign, Phrase, ConsentRecord, AuditLog, User
-from services.sign_recognition import supported_signs
+from models import Session, Message, MedicalSign, Phrase, AuditLog, User
+from services.sign_recognition import sign_guide
 from services.emergency import get_default_phrases
 from services.dictionary import get_local_seed
 from services.audit import log_action
-from services.consent import has_consent, grant_consent, revoke_consent
+from services.consent import consent_status, has_consent
 from datetime import datetime, timedelta
 
 views_bp = Blueprint("views", __name__)
@@ -55,7 +55,7 @@ def sign_translator():
     if not has_consent(current_user.id, "camera_capture"):
         flash("Please grant camera consent first.", "warning")
         return redirect(url_for("views.consent"))
-    return render_template("sign_translator.html", supported=supported_signs())
+    return render_template("sign_translator.html", guide=sign_guide())
 
 
 @views_bp.route("/patient/emergency")
@@ -75,7 +75,8 @@ def emergency():
 def doctor_home():
     _require_role("doctor", "admin")
     sessions = Session.query.filter_by(status="open").order_by(Session.created_at.desc()).all()
-    return render_template("doctor_home.html", sessions=sessions)
+    counts = {s.id: len(s.messages) for s in sessions}
+    return render_template("doctor_home.html", sessions=sessions, counts=counts)
 
 
 @views_bp.route("/doctor/session/<int:session_id>")
@@ -95,7 +96,9 @@ def session_detail(session_id):
 def voice_translator():
     _require_role("doctor", "admin")
     phrases = Phrase.query.order_by(Phrase.category, Phrase.text).all()
-    return render_template("voice_translator.html", phrases=phrases)
+    sessions = Session.query.filter_by(status="open").order_by(Session.created_at.desc()).all()
+    return render_template("voice_translator.html", phrases=phrases, sessions=sessions,
+                           selected_id=request.args.get("session_id", type=int))
 
 
 @views_bp.route("/doctor/phrases", methods=["GET", "POST"])
@@ -159,15 +162,25 @@ def dictionary():
 @views_bp.route("/settings")
 @login_required
 def settings():
-    consents = ConsentRecord.query.filter_by(user_id=current_user.id).all()
-    return render_template("settings.html", consents=consents)
+    return render_template("settings.html")
+
+
+@views_bp.route("/settings/delete-data", methods=["POST"])
+@login_required
+def delete_my_data():
+    sessions = Session.query.filter_by(patient_id=current_user.id).all()
+    for s in sessions:
+        db.session.delete(s)
+    db.session.commit()
+    log_action("data_deleted", f"{len(sessions)} session(s) deleted by the user")
+    flash("Your conversation history was deleted.", "success")
+    return redirect(url_for("views.settings"))
 
 
 @views_bp.route("/consent")
 @login_required
 def consent():
-    consents = ConsentRecord.query.filter_by(user_id=current_user.id).all()
-    return render_template("consent.html", consents=consents)
+    return render_template("consent.html", consents=consent_status(current_user.id))
 
 
 @views_bp.route("/analytics")

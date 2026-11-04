@@ -5,6 +5,9 @@ for future linguistic processing reviewed by fluent signers.
 """
 
 
+import re
+
+
 def normalize(text):
     return " ".join((text or "").strip().split())
 
@@ -18,7 +21,7 @@ def signs_to_sentence(sign_keys):
 def sentence_to_signs(sentence, phrases=None):
     from services.sign_recognition import SUPPORTED_SIGNS
     text = (sentence or "").lower()
-    hits = [k for k, v in SUPPORTED_SIGNS.items() if v.lower().strip(".") in text]
+    hits = [k for k in SUPPORTED_SIGNS if re.search(rf"\b{k}\b", text)]
     if phrases:
         for p in phrases:
             label = p["text"] if isinstance(p, dict) else p.text

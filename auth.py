@@ -23,7 +23,10 @@ def login():
             db.session.commit()
             login_user(user, remember=bool(request.form.get("remember")))
             log_action("login", f"User {user.email} logged in")
-            next_url = request.args.get("next") or url_for("views.dashboard")
+            next_url = request.args.get("next") or ""
+            # Only follow local paths, so a crafted link cannot redirect off-site.
+            if not next_url.startswith("/") or next_url.startswith(("//", "/\\")):
+                next_url = url_for("views.dashboard")
             return redirect(next_url)
         flash("Incorrect email or password.", "error")
     return render_template("login.html")

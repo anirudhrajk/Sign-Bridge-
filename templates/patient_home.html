@@ -7,17 +7,17 @@
 <section class="stat-grid">
   <a class="stat stat--primary" href="{{ url_for('views.sign_translator') }}">
     <svg class="icon icon--lg"><use href="#i-hand"/></svg>
-    <div><strong>Sign translator</strong><small>Camera · ISL → text</small></div>
+    <div><strong>Sign translator</strong><small>Camera · hand signs → text</small></div>
     <svg class="icon arrow"><use href="#i-arrow"/></svg>
   </a>
   <a class="stat stat--warning" href="{{ url_for('views.emergency') }}">
     <svg class="icon icon--lg"><use href="#i-alert"/></svg>
-    <div><strong>Emergency phrases</strong><small>Large buttons · works offline</small></div>
+    <div><strong>Emergency phrases</strong><small>Large buttons · one tap to send</small></div>
     <svg class="icon arrow"><use href="#i-arrow"/></svg>
   </a>
   <a class="stat" href="{{ url_for('views.dictionary') }}">
     <svg class="icon icon--lg"><use href="#i-book"/></svg>
-    <div><strong>Medical dictionary</strong><small>Approved signs by category</small></div>
+    <div><strong>Medical dictionary</strong><small>Medical terms by category</small></div>
     <svg class="icon arrow"><use href="#i-arrow"/></svg>
   </a>
 </section>
@@ -28,21 +28,7 @@
       <h2>Recent messages</h2>
       <span class="chip chip--soft">{{ session.status|capitalize }} session</span>
     </header>
-    {% if messages %}
-    <ul class="message-list">
-      {% for m in messages %}
-      <li class="message">
-        <span class="message__dot {{ 'message__dot--doctor' if m.sender.role == 'doctor' else '' }}"></span>
-        <div class="message__body">
-          <p>{{ m.body }}</p>
-          <small>{{ m.sender.display_name }} · {{ m.source }} · {{ m.created_at.strftime('%d %b %H:%M') }}</small>
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <p class="empty">No messages yet. Start with the sign translator.</p>
-    {% endif %}
+    <ul class="message-list" data-live-messages data-session-id="{{ session.id }}" data-newest-first data-empty="No messages yet. Start with the sign translator."></ul>
   </div>
 
   <div class="card">
@@ -58,4 +44,8 @@
     <a class="btn btn--ghost btn--block mt" href="{{ url_for('views.emergency') }}">Open full emergency screen</a>
   </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/live.js') }}" defer></script>
 {% endblock %}

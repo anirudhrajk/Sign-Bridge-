@@ -6,16 +6,18 @@
 <div class="two-col">
   <div class="card">
     <h2>Accessibility</h2>
-    <p class="muted">SignBridge is designed to meet WCAG 2.1 AA guidelines.</p>
-    <label class="check mt"><input type="checkbox"> High contrast mode</label>
-    <label class="check mt"><input type="checkbox"> Reduce motion</label>
-    <label class="check mt"><input type="checkbox" checked> Large text</label>
+    <p class="muted">These choices are saved on this device.</p>
+    <label class="check mt"><input type="checkbox" data-a11y="contrast"> High contrast mode</label>
+    <label class="check mt"><input type="checkbox" data-a11y="motion"> Reduce motion</label>
+    <label class="check mt"><input type="checkbox" data-a11y="large"> Large text</label>
   </div>
   <div class="card">
     <h2>Privacy & Data</h2>
     <p class="muted">Control how your data is stored and processed.</p>
     <a href="{{ url_for('views.consent') }}" class="btn btn--ghost mt">Manage Consents</a>
-    <button class="btn btn--ghost mt" style="color: var(--danger);">Request Data Deletion</button>
+    <form method="post" action="{{ url_for('views.delete_my_data') }}" onsubmit="return confirm('Delete your conversation history? This cannot be undone.');">
+      <button class="btn btn--ghost mt" style="color: var(--danger);" type="submit">Delete my conversations</button>
+    </form>
   </div>
 </div>
 {% endblock %}

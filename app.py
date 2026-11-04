@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request
+from flask import Flask, render_template
 from flask.cli import with_appcontext
 import click
 
@@ -11,6 +11,7 @@ import models  # noqa: F401
 
 def seed_defaults():
     from models import User, Phrase, MedicalSign
+    from services.consent import grant_consent, has_consent
     from services.emergency import get_default_phrases
     from services.dictionary import get_local_seed
 
@@ -23,6 +24,13 @@ def seed_defaults():
         admin.set_password("admin123")
         db.session.add_all([patient, doctor, admin])
         db.session.commit()
+
+    # The demo patient must be able to open the sign translator straight away.
+    demo_patient = User.query.filter_by(email="patient@signbridge.app").first()
+    if demo_patient:
+        for purpose in ("data_storage", "camera_capture"):
+            if not has_consent(demo_patient.id, purpose):
+                grant_consent(demo_patient.id, purpose)
 
     if Phrase.query.count() == 0:
         for p in get_default_phrases():
@@ -59,6 +67,10 @@ def create_app(config_class=Config):
     app.register_blueprint(views_bp)
     app.register_blueprint(api_bp)
 
+    @app.errorhandler(403)
+    def forbidden(_e):
+        return render_template("404.html"), 403
+
     @app.errorhandler(404)
     def not_found(_e):
         return render_template("404.html"), 404
@@ -81,6 +93,7 @@ def create_app(config_class=Config):
     @app.cli.command("purge-old-messages")
     @with_appcontext
     def purge_old_messages():
+        from models import Message
         cutoff = datetime.utcnow() - timedelta(days=app.config["MESSAGE_RETENTION_DAYS"])
         deleted = Message.query.filter(Message.created_at < cutoff).delete()
         db.session.commit()
@@ -97,4 +110,7 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+    # Local by default. The Werkzeug debugger must never be exposed on a network.
+    debug = os.environ.get("FLASK_DEBUG") == "1"
+    host = os.environ.get("HOST", "127.0.0.1")
+    app.run(host=host, port=int(os.environ.get("PORT", 5000)), debug=debug)

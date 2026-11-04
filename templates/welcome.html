@@ -1,30 +1,23 @@
 {% extends "base.html" %}
-{% block title %}SignBridge — Translate Sign Language{% endblock %}
-
-{% block public_content %}
-<div class="hero-container">
-  <div class="hero-grid">
-    
-    <div class="hero-text">
-      <div class="hero-badge">Welcome to SignBridge</div>
-      <h1 class="hero-title">Translate Sign Language into Clear Text Instantly</h1>
-      <p class="hero-subtitle">
-        SignBridge helps you break communication barriers by converting hand gestures into written words — easy, fast, and accessible.
-      </p>
-      
-      <div class="hero-actions">
-        <a href="{{ url_for('auth.register') }}" class="btn btn--primary btn--lg" style="background: white; color: black; font-weight: 600;">Try SignBridge for Free</a>
-        <a href="#" class="btn btn--ghost btn--lg" style="border-color: #27272a; color: white; font-weight: 600;">See How It Works</a>
-      </div>
-      
-      <p class="hero-footnote">Start translating sign language today. No credit card needed!</p>
+{% block title %}SignBridge — Doctor and patient communication{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="hero__copy">
+    <h1>Clear conversations between deaf patients and doctors</h1>
+    <p>Patients sign to the camera and doctors read it as text. Doctors speak or type, and the reply appears on the patient's screen.</p>
+    <div class="hero__actions">
+      {% if current_user.is_authenticated %}
+      <a href="{{ url_for('views.dashboard') }}" class="btn btn--primary btn--lg">Open dashboard</a>
+      {% else %}
+      <a href="{{ url_for('auth.register') }}" class="btn btn--primary btn--lg">Create an account</a>
+      <a href="{{ url_for('auth.login') }}" class="btn btn--ghost btn--lg">Sign in</a>
+      {% endif %}
     </div>
-
-    <div class="hero-image-wrapper">
-      <!-- Uses a high-quality placeholder matching the notebook/pen vibe -->
-      <img src="https://images.unsplash.com/photo-1517842645767-c639042777db?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" alt="Notebook and pen" class="hero-image">
-    </div>
-
   </div>
-</div>
+  <ol class="hero__steps">
+    <li><strong>Patient signs</strong><span>The camera reads the hand sign on the device.</span></li>
+    <li><strong>Patient confirms</strong><span>They check the text before it is sent.</span></li>
+    <li><strong>Doctor replies</strong><span>Speech or typing appears on the patient's screen.</span></li>
+  </ol>
+</section>
 {% endblock %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Medical dictionary — SignBridge{% endblock %}
 {% block page_title %}Medical dictionary{% endblock %}
-{% block page_sub %}Approved ISL signs grouped by medical category. Based on ISLRTC categories.{% endblock %}
+{% block page_sub %}Common medical terms by category. ISL videos will be added after review by fluent signers.{% endblock %}
 {% block content %}
 
 <div class="filter-bar">
@@ -24,7 +24,7 @@
     {% if s.video_url %}
     <a class="btn btn--ghost btn--sm" href="{{ s.video_url }}" target="_blank">Watch ISL video</a>
     {% else %}
-    <span class="muted small">Video pending approval</span>
+    <span class="muted small">Video coming soon</span>
     {% endif %}
   </article>
   {% endfor %}

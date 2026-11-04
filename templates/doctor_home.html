@@ -1,10 +1,30 @@
 {% extends "base.html" %}
 {% block title %}Sessions — SignBridge{% endblock %}
 {% block page_title %}Active sessions{% endblock %}
-{% block page_sub %}Patients who are waiting for a response. Open a session to view confirmed messages.{% endblock %}
+{% block page_sub %}Patients who are waiting for a response. Open a session to read and reply.{% endblock %}
 {% block content %}
 <section class="card">
   <header class="card__head">
     <h2>Open sessions</h2>
     <a class="btn btn--primary" href="{{ url_for('views.voice_translator') }}">
-      <svg class="
+      <svg class="icon"><use href="#i-mic"/></svg> Voice translator
+    </a>
+  </header>
+  {% if sessions %}
+  <ul class="message-list">
+    {% for s in sessions %}
+    <li class="message session-row">
+      <span class="user__avatar">{{ s.patient.initials }}</span>
+      <div class="message__body">
+        <p>{{ s.patient.display_name }}</p>
+        <small>{{ counts[s.id] }} message{{ '' if counts[s.id] == 1 else 's' }} · started {{ s.created_at.strftime('%d %b %H:%M') }}</small>
+      </div>
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('views.session_detail', session_id=s.id) }}">Open</a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">No open sessions. A session starts when a patient signs in.</p>
+  {% endif %}
+</section>
+{% endblock %}

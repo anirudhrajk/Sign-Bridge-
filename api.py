@@ -4,8 +4,8 @@ from extensions import db
 from models import Session, Message, Phrase
 from services.sign_recognition import predict_signs, supported_signs
 from services.language_processing import sentence_to_signs
-from services.speech import transcribe
 from services.audit import log_action
+from services.consent import CONSENT_PURPOSES, grant_consent, revoke_consent
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -30,7 +30,8 @@ def signs_index():
 def signs_recognize():
     payload = request.get_json(silent=True) or {}
     result = predict_signs(payload.get("landmarks"))
-    log_action("sign_recognized", f"{result['sign']} ({result['confidence']})")
+    if result["sign"] != "none":
+        log_action("sign_recognized", f"{result['sign']} ({result['confidence']})")
     return jsonify(result)
 
 
@@ -41,47 +42,41 @@ def create_message():
     body = (payload.get("body") or "").strip()
     if not body:
         return jsonify({"error": "body is required"}), 400
+    if len(body) > 2000:
+        return jsonify({"error": "message is too long"}), 400
+    source = payload.get("source", "text")
+    if source not in ("sign", "speech", "text", "emergency"):
+        source = "text"
     if current_user.role == "patient":
         s = _open_session_for_patient()
         direction = "patient_to_doctor"
-        sender_role = "patient"
-    else:
-        s = Session.query.get(payload.get("session_id"))
+    elif current_user.role in ("doctor", "admin"):
+        s = db.session.get(Session, payload.get("session_id") or 0)
         if not s:
-            return jsonify({"error": "session not found"}), 404
+            return jsonify({"error": "Choose a patient session first"}), 404
         direction = "doctor_to_patient"
-        sender_role = "doctor"
+    else:
+        return jsonify({"error": "forbidden"}), 403
     msg = Message(
         session_id=s.id,
         sender_id=current_user.id,
         direction=direction,
-        source=payload.get("source", "text"),
+        source=source,
         body=body,
-        confirmed=bool(payload.get("confirmed", sender_role == "patient")),
+        confirmed=True,  # both senders review the text before sending
         confidence=payload.get("confidence"),
     )
     db.session.add(msg)
     db.session.commit()
-    log_action("message_created", f"{direction}: {body[:40]}")
+    log_action("message_created", f"{direction} via {source}")
     return jsonify({"id": msg.id, "body": msg.body, "created_at": msg.created_at.isoformat()})
-
-
-@api_bp.post("/speech/transcribe")
-@login_required
-def speech_transcribe():
-    audio = request.files.get("audio")
-    locale = request.form.get("locale", "en")
-    data = audio.read() if audio else None
-    result = transcribe(data, locale=locale)
-    log_action("speech_transcribed", result["text"][:40])
-    return jsonify(result)
 
 
 @api_bp.post("/speech/to-sign")
 @login_required
 def speech_to_sign():
     payload = request.get_json(silent=True) or {}
-    result = sentence_to_signs(payload.get("text", ""))
+    result = sentence_to_signs(payload.get("text", ""), Phrase.query.all())
     return jsonify(result)
 
 
@@ -93,8 +88,9 @@ def list_messages(session_id):
         return jsonify({"error": "forbidden"}), 403
     msgs = Message.query.filter_by(session_id=s.id).order_by(Message.created_at).all()
     return jsonify({"messages": [
-        {"id": m.id, "direction": m.direction, "source": m.source,
-         "body": m.body, "confirmed": m.confirmed, "created_at": m.created_at.isoformat()}
+        {"id": m.id, "direction": m.direction, "source": m.source, "body": m.body,
+         "sender": m.sender.display_name, "sender_role": m.sender.role,
+         "confirmed": m.confirmed, "created_at": m.created_at.strftime("%d %b %H:%M")}
         for m in msgs
     ]})
 
@@ -102,7 +98,8 @@ def list_messages(session_id):
 @api_bp.post("/consent/<purpose>")
 @login_required
 def toggle_consent(purpose):
-    from services.consent import grant_consent, revoke_consent
+    if purpose not in CONSENT_PURPOSES:
+        return jsonify({"error": "unknown purpose"}), 404
     payload = request.get_json(silent=True) or {}
     if payload.get("granted"):
         grant_consent(current_user.id, purpose)

@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Consent — SignBridge{% endblock %}
 {% block page_title %}Consent management{% endblock %}
-{% block page_sub %}Control how SignBridge uses camera, audio, and stored messages under the DPDP Act.{% endblock %}
+{% block page_sub %}Control how SignBridge uses your camera and stored messages.{% endblock %}
 {% block content %}
 
 <div class="card">
   <h2>Your consent preferences</h2>
-  <p class="muted">Granting consent is required for camera capture, speech processing, and message storage. You may revoke consent at any time.</p>
+  <p class="muted">The sign translator needs camera consent. You can change these choices at any time.</p>
   <ul class="consent-list">
     {% for c in consents %}
     <li class="consent-item">
       <div>
         <strong>{{ c.purpose.replace('_', ' ')|title }}</strong>
-        <small class="muted">{{ 'Granted' if c.granted else 'Revoked' }}{% if c.granted_at %} · {{ c.granted_at.strftime('%d %b %Y') }}{% endif %}</small>
+        <small class="muted">{{ c.description }} · {{ 'Granted' if c.granted else 'Not granted' }}{% if c.granted_at %} on {{ c.granted_at.strftime('%d %b %Y') }}{% endif %}</small>
       </div>
       <button class="btn btn--ghost btn--sm toggle-consent" data-purpose="{{ c.purpose }}" data-granted="{{ 'true' if c.granted else 'false' }}">
         {{ 'Revoke' if c.granted else 'Grant' }}

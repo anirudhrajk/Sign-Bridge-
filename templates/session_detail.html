@@ -5,23 +5,19 @@
 {% block content %}
 <div class="card">
   <div class="card__head">
-    <h2>Conversation History</h2>
-    <a href="{{ url_for('views.voice_translator') }}" class="btn btn--primary btn--sm"><svg class="icon"><use href="#i-mic"/></svg> Reply via Voice</a>
+    <h2>Conversation</h2>
+    <a href="{{ url_for('views.voice_translator', session_id=session.id) }}" class="btn btn--primary btn--sm"><svg class="icon"><use href="#i-mic"/></svg> Reply by voice</a>
   </div>
-  {% if messages %}
-    <ul class="message-list">
-      {% for m in messages %}
-      <li class="message" style="margin-bottom: 16px;">
-        <span class="message__dot {{ 'message__dot--doctor' if m.sender.role == 'doctor' else '' }}"></span>
-        <div class="message__body">
-          <p style="font-size: 1.1rem;">{{ m.body }}</p>
-          <small>{{ m.sender.display_name }} · {{ m.source }} · {{ m.created_at.strftime('%d %b %H:%M') }}</small>
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="empty">No messages yet in this session.</p>
-  {% endif %}
+  <ul class="message-list" data-live-messages data-session-id="{{ session.id }}" data-empty="No messages yet in this session."></ul>
+  <form class="reply-form mt" id="replyForm" data-session-id="{{ session.id }}">
+    <label class="field"><span>Type a reply</span>
+      <textarea id="replyText" rows="2" maxlength="2000" required placeholder="Type a short message for the patient"></textarea>
+    </label>
+    <button class="btn btn--primary" type="submit">Send to patient</button>
+  </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/live.js') }}" defer></script>
 {% endblock %}
