@@ -13,10 +13,14 @@
     ['smalllittle', 'small', 'little', 'tiny'], ['cellphone', 'phone', 'mobile'], ['house', 'home'],
     ['happy', 'glad'], ['sad', 'upset', 'unhappy'], ['fast', 'quick', 'quickly'], ['slow', 'slowly'],
     ['loud', 'loudly'], ['quiet', 'quietly'], ['storeorshop', 'shop', 'store'], ['streetorroad', 'road', 'street'],
-    ['television', 'tv'], ['price', 'cost'], ['money', 'cash'], ['bed', 'bedroom'],
+    ['television', 'tv'], ['price', 'cost'], ['money', 'cash'],
+    // ASL names (Google ISLR vocabulary)
+    ['owie', 'hurt', 'hurts', 'pain', 'painful', 'ache', 'sore'], ['potty', 'toilet', 'bathroom'],
+    ['minemy', 'my', 'mine'], ['weus', 'we', 'us'], ['hesheit', 'he', 'she', 'him', 'her'],
+    ['kitty', 'cat'], ['glasswindow', 'window'],
   ];
   const GROUP_OF = new Map();
-  GROUPS.forEach(g => g.forEach(w => GROUP_OF.set(w, g)));
+  GROUPS.forEach(g => g.forEach(w => GROUP_OF.set(w, [...(GROUP_OF.get(w) || []), ...g])));
   // One-way: possessives and object pronouns sign as the plain pronoun.
   const PRONOUN = { me: 'i', my: 'i', mine: 'i', myself: 'i', your: 'you', yours: 'you', yourself: 'you',
     his: 'he', him: 'he', her: 'she', hers: 'she', our: 'we', us: 'we', their: 'they', them: 'they' };
@@ -25,6 +29,8 @@
     'good night': 'goodnight', 'thank you': 'thankyou', 'how are you': 'howareyou',
     'train station': 'trainstation', 'railway station': 'trainstation', 'train ticket': 'trainticket',
     't shirt': 'tshirt', 'you all': 'youplural', 'all of you': 'youplural',
+    'have to': 'haveto', 'call on the phone': 'callonphone', 'phone call': 'callonphone',
+    'ice cream': 'icecream', 'french fries': 'frenchfries',
   };
   // Words ISL leaves out; dropping them keeps signing short and clear.
   const DROP = new Set(('a an the is am are was were be been being to of for and or but will shall would ' +
@@ -42,9 +48,10 @@
     find(w) { return this.byLower.get(w) || null; }
 
     lookup(w) {
-      if (PRONOUN[w]) w = PRONOUN[w];
       if (IRREGULAR[w]) w = IRREGULAR[w];
-      for (const cand of [w, ...(GROUP_OF.get(w) || [])]) {
+      const tries = [w, ...(GROUP_OF.get(w) || [])];
+      if (PRONOUN[w]) tries.push(PRONOUN[w], ...(GROUP_OF.get(PRONOUN[w]) || []));
+      for (const cand of tries) {
         const hit = this.find(cand);
         if (hit) return hit;
       }

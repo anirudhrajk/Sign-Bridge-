@@ -8,6 +8,10 @@ DISPLAY = {
     "raceethnicity": "race", "storeorshop": "shop", "streetorroad": "road",
     "trainstation": "train station", "trainticket": "train ticket",
     "tshirt": "T-shirt", "youplural": "you (all)", "i": "I", "cellphone": "phone",
+    # American Sign Language (Google ISLR dataset)
+    "callonphone": "call on phone", "frenchfries": "french fries", "glasswindow": "window",
+    "haveto": "have to", "hesheit": "he / she", "minemy": "my", "weus": "we", "icecream": "ice cream",
+    "owie": "hurt", "potty": "toilet", "TV": "TV",
 }
 
 

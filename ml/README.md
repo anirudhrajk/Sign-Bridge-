@@ -15,6 +15,24 @@ python ml/check_export.py   # re-checks the exported model's accuracy
 
 Restart the app after retraining. The browser picks up the new `model.json` and `weights.bin`.
 
+## American Sign Language
+
+The ASL data is Google's "Isolated Sign Language Recognition" Kaggle competition: 94,477
+recordings of 250 signs by 21 signers. You need your own Kaggle account with the competition
+rules accepted, and a token saved in `%USERPROFILE%\.kaggle\access_token`.
+
+```bash
+py -3.11 ml/download_asl.py                  # streams the 40 GB archive, keeps about 230 MB
+python ml/prepare_data.py --lang asl
+python ml/train.py --lang asl --epochs 40 --eval-every 4 --width 192
+python ml/build_sign_clips.py --lang asl     # lists the recordings the avatar needs
+py -3.11 ml/download_asl.py --clips          # fetches only those 250 full recordings
+python ml/build_sign_clips.py --lang asl     # builds static/signs/asl/
+```
+
+ASL accuracy is measured on 4 signers held out of training, so it reflects how the model does
+with new people. ISL has no signer IDs, so its test set may include people seen in training.
+
 ## Adding new signs (for example, medical words)
 
 1. Record each new sign about 15 to 20 times, ideally with several different signers,
