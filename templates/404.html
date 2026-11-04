@@ -1,10 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Page not found — SignBridge{% endblock %}
+{% block title %}Page not found · SignBridge{% endblock %}
+{% block page_title %}Not found{% endblock %}
 {% block content %}
-<div class="card auth-card" style="text-align: center;">
-  <h1 style="font-size: 4rem; margin-bottom: 0; color: var(--primary);">404</h1>
-  <h2>Page not found</h2>
-  <p class="muted">The page you are looking for doesn't exist or has been moved.</p>
-  <a href="{{ url_for('views.dashboard') }}" class="btn btn--primary mt">Return to Dashboard</a>
+<div class="error-page">
+  <div class="code">404</div>
+  <h2>We couldn't find that page</h2>
+  <p class="muted">It may have moved, or you may not have access to it.</p>
+  <a href="{{ url_for('views.dashboard') if current_user.is_authenticated else url_for('views.welcome') }}" class="btn btn--primary mt">Go home</a>
 </div>
 {% endblock %}

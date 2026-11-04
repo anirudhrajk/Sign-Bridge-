@@ -1,23 +1,67 @@
 {% extends "base.html" %}
-{% block title %}Settings — SignBridge{% endblock %}
+{% from "_macros.html" import avatar %}
+{% block title %}Settings · SignBridge{% endblock %}
 {% block page_title %}Settings{% endblock %}
-{% block page_sub %}Manage your preferences, accessibility, and privacy.{% endblock %}
+{% block page_sub %}Your account, display, and privacy choices.{% endblock %}
 {% block content %}
 <div class="two-col">
-  <div class="card">
-    <h2>Accessibility</h2>
-    <p class="muted">These choices are saved on this device.</p>
-    <label class="check mt"><input type="checkbox" data-a11y="contrast"> High contrast mode</label>
-    <label class="check mt"><input type="checkbox" data-a11y="motion"> Reduce motion</label>
-    <label class="check mt"><input type="checkbox" data-a11y="large"> Large text</label>
+  <div style="display:grid;gap:18px">
+    <div class="card">
+      <h2>Account</h2>
+      <div class="profile-pill" style="margin:0">
+        {{ avatar(current_user) }}
+        <div><strong>{{ current_user.display_name }}</strong><small>{{ current_user.email }} · {{ current_user.role|capitalize }}</small></div>
+      </div>
+      <p class="muted small mt" style="margin-bottom:0">
+        {% if current_user.google_sub %}Signed in with Google.{% else %}Signed in with email and password.{% endif %}
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Display</h2>
+      <div class="settings-row">
+        <div><strong>Theme</strong><small>Follow your device, or pick one.</small></div>
+        <select id="themePicker" class="btn btn--ghost btn--sm" aria-label="Theme">
+          <option value="">Device</option><option value="light">Light</option><option value="dark">Dark</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <div><strong>Large text</strong><small>Bigger words across the app.</small></div>
+        <label class="switch"><input type="checkbox" data-a11y="large" aria-label="Large text"><span></span></label>
+      </div>
+      <div class="settings-row">
+        <div><strong>High contrast</strong><small>Stronger colours and borders.</small></div>
+        <label class="switch"><input type="checkbox" data-a11y="contrast" aria-label="High contrast"><span></span></label>
+      </div>
+      <div class="settings-row">
+        <div><strong>Reduce motion</strong><small>Turn off animations.</small></div>
+        <label class="switch"><input type="checkbox" data-a11y="motion" aria-label="Reduce motion"><span></span></label>
+      </div>
+      <p class="muted small mt" style="margin-bottom:0">Saved on this device.</p>
+    </div>
   </div>
+
   <div class="card">
-    <h2>Privacy & Data</h2>
-    <p class="muted">Control how your data is stored and processed.</p>
-    <a href="{{ url_for('views.consent') }}" class="btn btn--ghost mt">Manage Consents</a>
+    <h2>Privacy and data</h2>
+    <p class="muted">Camera video is processed on this device and is never uploaded. Only the messages you confirm are stored.</p>
+    <a href="{{ url_for('views.consent') }}" class="btn btn--ghost btn--block"><svg class="icon"><use href="#i-shield"/></svg> Manage consent</a>
     <form method="post" action="{{ url_for('views.delete_my_data') }}" onsubmit="return confirm('Delete your conversation history? This cannot be undone.');">
-      <button class="btn btn--ghost mt" style="color: var(--danger);" type="submit">Delete my conversations</button>
+      <button class="btn btn--danger btn--block mt" type="submit"><svg class="icon"><use href="#i-trash"/></svg> Delete my conversations</button>
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const picker = document.getElementById('themePicker');
+  try { picker.value = localStorage.getItem('sb-theme') || ''; } catch (e) {}
+  picker.addEventListener('change', () => {
+    const v = picker.value;
+    if (v) document.documentElement.dataset.theme = v; else delete document.documentElement.dataset.theme;
+    try { v ? localStorage.setItem('sb-theme', v) : localStorage.removeItem('sb-theme'); } catch (e) {}
+  });
+})();
+</script>
 {% endblock %}

@@ -5,20 +5,26 @@
   const sessionId = list.dataset.sessionId;
   let lastSignature = null;
 
+  const SOURCE_LABEL = { sign: 'Signed', speech: 'Spoken', text: 'Typed', emergency: 'Emergency' };
+
   function render(messages) {
-    const ordered = 'newestFirst' in list.dataset ? [...messages].reverse().slice(0, 10) : messages;
+    const ordered = 'newestFirst' in list.dataset ? [...messages].reverse().slice(0, 10) : messages.slice(-40);
     list.replaceChildren(...ordered.map(m => {
+      const fromStaff = m.sender_role !== 'patient';
       const item = document.createElement('li');
-      item.className = 'message';
+      item.className = 'message ' + (fromStaff ? 'message--staff' : 'message--patient');
       const dot = document.createElement('span');
-      dot.className = 'message__dot' + (m.sender_role === 'patient' ? '' : ' message__dot--doctor');
+      dot.className = 'message__dot' + (fromStaff ? ' message__dot--doctor' : '');
       const body = document.createElement('div');
       body.className = 'message__body';
+      const tag = document.createElement('span');
+      tag.className = 'message-tag';
+      tag.textContent = `${m.sender} � ${SOURCE_LABEL[m.source] || m.source}`;
       const text = document.createElement('p');
       text.textContent = m.body;
       const meta = document.createElement('small');
-      meta.textContent = `${m.sender} · ${m.source} · ${m.created_at}`;
-      body.append(text, meta);
+      meta.textContent = m.created_at;
+      body.append(tag, text, meta);
       item.append(dot, body);
       return item;
     }));

@@ -12,4 +12,8 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     MESSAGE_RETENTION_DAYS = int(os.environ.get("MESSAGE_RETENTION_DAYS", 90))
+    GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    # Optional: force the exact callback URL registered in Google Cloud Console.
+    GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "")
     UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "static", "uploads")

@@ -1,17 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Analytics — SignBridge{% endblock %}
-{% block page_title %}Platform Analytics{% endblock %}
-{% block page_sub %}Usage statistics and session metrics.{% endblock %}
+{% block title %}Analytics · SignBridge{% endblock %}
+{% block page_title %}Analytics{% endblock %}
+{% block page_sub %}How SignBridge is being used across the clinic.{% endblock %}
 {% block content %}
 <div class="stat-grid">
-  <div class="stat">
-    <div><strong>Total Sessions</strong><h2 style="margin: 8px 0 0;">{{ total_sessions }}</h2></div>
-  </div>
-  <div class="stat">
-    <div><strong>Total Messages</strong><h2 style="margin: 8px 0 0;">{{ total_messages }}</h2></div>
-  </div>
+  <div class="stat"><svg class="icon"><use href="#i-users"/></svg><div><small>Conversations</small><span class="stat__value">{{ total_sessions }}</span></div></div>
+  <div class="stat"><svg class="icon"><use href="#i-message"/></svg><div><small>Messages</small><span class="stat__value">{{ total_messages }}</span></div></div>
 </div>
-<div class="card mt">
-  <p class="muted">More detailed metrics (confidence averages, response times) will appear here as the app is used.</p>
+<div class="card note">
+  <p style="margin:0">Recognition confidence and response times will appear here as the app is used.</p>
 </div>
 {% endblock %}

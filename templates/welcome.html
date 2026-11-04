@@ -1,23 +1,142 @@
-{% extends "base.html" %}
-{% block title %}SignBridge — Doctor and patient communication{% endblock %}
-{% block content %}
-<section class="hero">
-  <div class="hero__copy">
-    <h1>Clear conversations between deaf patients and doctors</h1>
-    <p>Patients sign to the camera and doctors read it as text. Doctors speak or type, and the reply appears on the patient's screen.</p>
-    <div class="hero__actions">
-      {% if current_user.is_authenticated %}
-      <a href="{{ url_for('views.dashboard') }}" class="btn btn--primary btn--lg">Open dashboard</a>
-      {% else %}
-      <a href="{{ url_for('auth.register') }}" class="btn btn--primary btn--lg">Create an account</a>
-      <a href="{{ url_for('auth.login') }}" class="btn btn--ghost btn--lg">Sign in</a>
-      {% endif %}
+{% extends "public.html" %}
+{% from "_macros.html" import google_button with context %}
+{% block title %}SignBridge: sign language for the doctor's office{% endblock %}
+{% block body %}
+
+<header class="public-nav">
+  <a class="brand" href="{{ url_for('views.welcome') }}">
+    <span class="brand__mark"><svg class="icon"><use href="#i-logo"/></svg></span>
+    <span class="brand__name">SignBridge</span>
+  </a>
+  <nav class="public-nav__links">
+    <a class="btn btn--quiet" href="#how">How it works</a>
+    {% if current_user.is_authenticated %}
+      <a class="btn btn--primary" href="{{ url_for('views.dashboard') }}">Open SignBridge</a>
+    {% else %}
+      <a class="btn btn--quiet" href="{{ url_for('auth.login') }}">Sign in</a>
+      <a class="btn btn--primary" href="{{ url_for('auth.register') }}">Get started</a>
+    {% endif %}
+  </nav>
+</header>
+
+<main class="landing">
+  <section class="hero">
+    <div>
+      <span class="eyebrow"><svg class="icon" style="width:14px;height:14px"><use href="#i-hand"/></svg> Built for Indian Sign Language</span>
+      <h1>Every deaf patient deserves to be <em>understood</em> by their doctor.</h1>
+      <p class="hero__lede">SignBridge turns a patient's signs into text the doctor can read, and turns the doctor's words back into sign, with no interpreter needed in the room.</p>
+      <div class="hero__actions">
+        {% if current_user.is_authenticated %}
+          <a class="btn btn--primary btn--lg" href="{{ url_for('views.dashboard') }}">Open SignBridge <svg class="icon"><use href="#i-arrow"/></svg></a>
+        {% else %}
+          {{ google_button() }}
+          <a class="btn btn--ghost btn--lg" href="{{ url_for('auth.login') }}">Sign in with email</a>
+        {% endif %}
+      </div>
+      <div class="hero__fine">
+        <span><svg class="icon"><use href="#i-check"/></svg> Camera stays on your device</span>
+        <span><svg class="icon"><use href="#i-check"/></svg> Patient confirms every message</span>
+        <span><svg class="icon"><use href="#i-check"/></svg> Emergency phrases in one tap</span>
+      </div>
     </div>
+
+    <div class="preview" aria-hidden="true">
+      <div class="preview__bar">
+        <strong>Consultation · Room 4</strong>
+        <span class="chip"><span class="dot dot--live"></span> Live</span>
+      </div>
+      <div class="preview__cam">
+        <svg viewBox="0 0 320 200" fill="none" stroke="#7fe0cf" stroke-width="2" stroke-linecap="round">
+          <g opacity=".9">
+            <circle cx="160" cy="70" r="26" stroke="#3db5a2" opacity=".5"/>
+            <path d="M118 200c4-40 22-62 42-62s38 22 42 62" stroke="#3db5a2" opacity=".5"/>
+          </g>
+          <g>
+            <path d="M214 150 222 112M222 112l6-30M222 112l14-28M222 112l18-22M222 112l20-12" />
+            <path d="M214 150l-16-22" />
+          </g>
+          <g fill="#ffffff" stroke="none">
+            <circle cx="214" cy="150" r="3.5"/><circle cx="222" cy="112" r="3"/>
+            <circle cx="228" cy="82" r="3"/><circle cx="236" cy="84" r="3"/>
+            <circle cx="240" cy="90" r="3"/><circle cx="242" cy="100" r="3"/><circle cx="198" cy="128" r="3"/>
+          </g>
+        </svg>
+        <span class="camera-status">Reading signs…</span>
+      </div>
+      <div class="preview__chat">
+        <div class="bubble"><small>Patient · signed</small>I have pain in my chest since morning.<span class="bubble__conf">94%</span></div>
+        <div class="bubble bubble--doctor"><small>Doctor · spoken</small>Is the pain sharp, or does it feel like pressure?</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="features__head">
+      <h2>Made for the exam room, not the lab.</h2>
+      <p>Deaf patients often leave appointments unsure what was said. Every feature here exists to close that gap.</p>
+    </div>
+    <div class="feature-grid">
+      <article class="feature">
+        <svg class="icon"><use href="#i-hand"/></svg>
+        <h3>Sign to text</h3>
+        <p>The camera follows the patient's hands on the device and shows the doctor clear English text.</p>
+      </article>
+      <article class="feature feature--accent">
+        <svg class="icon"><use href="#i-mic"/></svg>
+        <h3>Speech to sign</h3>
+        <p>The doctor speaks naturally. The patient sees the words and the matching signs on screen.</p>
+      </article>
+      <article class="feature feature--danger">
+        <svg class="icon"><use href="#i-alert"/></svg>
+        <h3>Emergency mode</h3>
+        <p>Large, one-tap phrases like "I can't breathe" reach staff instantly, even under stress.</p>
+      </article>
+      <article class="feature">
+        <svg class="icon"><use href="#i-check"/></svg>
+        <h3>Patient confirms first</h3>
+        <p>Nothing is sent until the patient checks it. Translation mistakes never reach the chart silently.</p>
+      </article>
+      <article class="feature">
+        <svg class="icon"><use href="#i-wifi-off"/></svg>
+        <h3>Works on weak networks</h3>
+        <p>Hand tracking runs on the device, so clinics with poor internet can still use it.</p>
+      </article>
+      <article class="feature">
+        <svg class="icon"><use href="#i-lock"/></svg>
+        <h3>Private by design</h3>
+        <p>Video never leaves the device. Consent is recorded, and patients can delete their history.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="flow" id="how">
+    <div>
+      <p class="section-title">How it works</p>
+      <h2>One conversation, two languages.</h2>
+      <p class="muted">The patient and doctor each use the mode that feels natural to them.</p>
+    </div>
+    <ol>
+      <li><strong>The patient signs to the camera</strong><span>Hand movement is tracked on the device and translated into English.</span></li>
+      <li><strong>The patient checks the text</strong><span>They can fix any word before it is sent, so the doctor reads what was meant.</span></li>
+      <li><strong>The doctor replies by voice</strong><span>Their words appear on the patient's screen, with the matching signs.</span></li>
+    </ol>
+  </section>
+
+  {% if not current_user.is_authenticated %}
+  <section class="cta-band">
+    <div>
+      <h2>Start your first conversation.</h2>
+      <p>Free to try. Sign in with your Google account in seconds.</p>
+    </div>
+    {{ google_button('Sign in with Google') }}
+  </section>
+  {% endif %}
+</main>
+
+<footer class="public-foot">
+  <div>
+    <span>© {{ now().year }} SignBridge</span>
+    <span>A communication aid. In an emergency, always alert hospital staff directly.</span>
   </div>
-  <ol class="hero__steps">
-    <li><strong>Patient signs</strong><span>The camera reads the hand sign on the device.</span></li>
-    <li><strong>Patient confirms</strong><span>They check the text before it is sent.</span></li>
-    <li><strong>Doctor replies</strong><span>Speech or typing appears on the patient's screen.</span></li>
-  </ol>
-</section>
+</footer>
 {% endblock %}

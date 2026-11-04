@@ -4,12 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const netStatus = document.getElementById('netStatus');
-  const netText = netStatus?.querySelector('[data-net-text]');
   function updateNet() {
     if (!netStatus) return;
-    const online = navigator.onLine;
-    netText.textContent = online ? 'Online' : 'Offline';
-    netStatus.querySelector('.dot').style.background = online ? 'var(--success)' : 'var(--danger)';
+    // Only shown when there is a problem; "Online" is the normal state.
+    netStatus.hidden = navigator.onLine;
   }
   window.addEventListener('online', updateNet);
   window.addEventListener('offline', updateNet);

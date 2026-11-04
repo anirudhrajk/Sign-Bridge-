@@ -16,6 +16,8 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     is_active = db.Column(db.Boolean, default=True)
+    google_sub = db.Column(db.String(64), unique=True, index=True)  # Google account ID
+    avatar_url = db.Column(db.String(512))
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

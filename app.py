@@ -5,7 +5,9 @@ from flask.cli import with_appcontext
 import click
 
 from config import Config
-from extensions import db, login_manager
+from sqlalchemy import inspect, text
+
+from extensions import db, login_manager, oauth
 import models  # noqa: F401
 
 
@@ -51,6 +53,17 @@ def seed_defaults():
         db.session.commit()
 
 
+def upgrade_schema():
+    """Add columns introduced after the first release to an existing database."""
+    cols = {c["name"] for c in inspect(db.engine).get_columns("users")}
+    with db.engine.begin() as conn:
+        if "google_sub" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN google_sub VARCHAR(64)"))
+        if "avatar_url" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512)"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users (google_sub)"))
+
+
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
@@ -58,6 +71,13 @@ def create_app(config_class=Config):
 
     db.init_app(app)
     login_manager.init_app(app)
+    oauth.init_app(app)
+    if app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"]:
+        oauth.register(
+            name="google",
+            server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+            client_kwargs={"scope": "openid email profile", "prompt": "select_account"},
+        )
 
     from auth import auth_bp
     from views import views_bp
@@ -81,7 +101,8 @@ def create_app(config_class=Config):
 
     @app.context_processor
     def inject_globals():
-        return {"app_name": "SignBridge", "now": datetime.utcnow}
+        return {"app_name": "SignBridge", "now": datetime.utcnow,
+                "google_enabled": bool(app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"])}
 
     @app.cli.command("init-db")
     @with_appcontext
@@ -101,6 +122,7 @@ def create_app(config_class=Config):
 
     with app.app_context():
         db.create_all()
+        upgrade_schema()
         seed_defaults()
 
     return app
