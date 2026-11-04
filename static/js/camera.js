@@ -13,13 +13,15 @@
   const MAYBE = 0.2;          // below this, ask the patient to sign again
   const MIN_FRAMES = 8;       // shortest sign we try to read
   const MAX_FRAMES = 150;     // read anyway if a sign runs this long
-  const END_GAP = 6;          // frames without hands that end a sign
-  const STILL_FRAMES = 12;    // frames of stillness that end a sign
-  const STILL_MOTION = 0.012; // wrist movement (in shoulder widths) that counts as still
+  // Timing is in milliseconds, so it behaves the same on fast and slow devices.
+  const END_GAP_MS = 300;     // hands out of view this long ends a sign
+  const STILL_MS = 700;       // hands held still this long (after moving) ends a sign
+  const MIN_SIGN_MS = 350;    // ignore twitches shorter than this
+  const STILL_SPEED = 0.15;   // wrist speed (shoulder widths per second) that counts as still
 
   let model = null, holistic = null, stream = null, running = false, busy = false;
   let recent = [];            // last ~3 s of frames, for "Read sign now"
-  let segment = [], gap = 0, still = 0, moved = 0, lastWrists = null;
+  let segment = [], gapSince = 0, stillSince = 0, segStart = 0, moved = 0, lastWrists = null, lastT = 0;
   let lastWord = null;        // {text, start} of the word we last added, so it can be replaced
   const confidences = [];
   let teach = null;           // {label, done} while recording examples of a new sign
@@ -109,29 +111,34 @@
   function onResults(res) {
     if (!running) return;
     draw(res);
-    const frame = SignModel.holisticToPoints(res);
+    if (!model) { status.textContent = 'Loading signs…'; return; }
+    const frame = model.toPoints(res);
     updateCheck(res, frame);
     recent.push(frame);
     if (recent.length > 90) recent.shift();
     if (!model) { status.textContent = 'Loading signs…'; return; }
 
-    const hands = SignModel.hasHand(frame);
+    const hands = model.hasHand(frame);
     if (!res.poseLandmarks) status.textContent = 'Move back so your shoulders are in view';
 
+    const now = (res.time ?? performance.now());
+    const dt = lastT ? Math.min(0.25, (now - lastT) / 1000) : 0;
+    lastT = now;
     if (hands) {
       const motion = wristMotion(frame);
+      if (!segment.length) { segStart = now; stillSince = now; moved = 0; }
       segment.push(frame);
-      gap = 0;
-      if (motion < STILL_MOTION) still++; else { still = 0; moved += motion; }
+      gapSince = 0;
+      if (dt > 0 && motion / dt > STILL_SPEED) { stillSince = now; moved += motion; }
       if (res.poseLandmarks) status.textContent = 'Reading your sign…';
       meter.hidden = false;
-      meter.firstElementChild.style.width = `${Math.min(100, (segment.length / 45) * 100)}%`;
+      meter.firstElementChild.style.width = `${Math.min(100, ((now - segStart) / 1800) * 100)}%`;
       // A held pause after real movement ends the sign.
-      if (still >= STILL_FRAMES && moved > 0.15 && segment.length >= MIN_FRAMES) finish();
+      if (now - stillSince >= STILL_MS && moved > 0.15 && now - segStart >= MIN_SIGN_MS && segment.length >= MIN_FRAMES) finish();
       else if (segment.length >= MAX_FRAMES) finish();
     } else if (segment.length) {
-      gap++;
-      if (gap >= END_GAP) finish();
+      if (!gapSince) gapSince = now;
+      if (now - gapSince >= END_GAP_MS) finish();
     } else if (res.poseLandmarks) {
       status.textContent = 'Ready: raise your hands to sign';
       meter.hidden = true;
@@ -141,7 +148,8 @@
   function wristMotion(frame) {
     const ls = frame[1], rs = frame[2];
     const scale = ls && rs ? Math.hypot(ls[0] - rs[0], ls[1] - rs[1]) || 0.25 : 0.25;
-    const w = [frame[7], frame[28]];
+    const [wl, wr] = model.wrists || [7, 28];
+    const w = [frame[wl], frame[wr]];
     let m = 0;
     if (lastWrists) w.forEach((p, i) => { if (p && lastWrists[i]) m = Math.max(m, Math.hypot(p[0] - lastWrists[i][0], p[1] - lastWrists[i][1]) / scale); });
     lastWrists = w;
@@ -150,16 +158,16 @@
 
   function finish() {
     const frames = segment;
-    segment = []; gap = 0; still = 0; moved = 0; lastWrists = null;
+    segment = []; gapSince = 0; moved = 0; lastWrists = null;
     meter.hidden = true;
     if (frames.length < MIN_FRAMES) return;
     if (teach) { saveExample(frames); return; }
     classify(frames);
   }
 
-  function classify(frames) {
+  async function classify(frames) {
     const t0 = performance.now();
-    const top = model.predict(frames, 5);
+    const top = await model.predict(frames, 5);
     const ms = Math.round(performance.now() - t0);
     showResult(top, ms);
   }
@@ -267,7 +275,7 @@
 
   nowBtn.addEventListener('click', () => {
     const frames = recent.slice(-60);
-    if (!model || frames.filter(SignModel.hasHand).length < MIN_FRAMES) {
+    if (!model || frames.filter(f => model.hasHand(f)).length < MIN_FRAMES) {
       SignBridge.toast('No sign seen yet. Make sure your hands are in view.');
       return;
     }
@@ -279,7 +287,8 @@
   function updateCheck(res, frame) {
     check.hidden = false;
     const set = (k, ok) => check.querySelector(`[data-check="${k}"]`).classList.toggle('is-ok', !!ok);
-    set('body', res.poseLandmarks); set('left', frame[7]); set('right', frame[28]);
+    set('body', res.poseLandmarks); const [wl, wr] = model.wrists || [7, 28];
+    set('left', frame[wl]); set('right', frame[wr]);
     fpsN++;
     const now = performance.now();
     if (now - fpsT > 1000) {
@@ -303,7 +312,10 @@
     } catch (e) {
       try { taught = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]'); } catch (e2) { taught = []; }
     }
-    model.setCustom(taught.map(t => ({ label: t.label, emb: model.embed(t.frames) })));
+    const usable = taught.filter(t => t.frames?.[0]?.length === (model.P || 49));   // examples recorded for this model
+    const embs = [];
+    for (const t of usable) embs.push({ label: t.label, emb: await model.embed(t.frames) });
+    model.setCustom(embs);
     renderTaught();
   }
 

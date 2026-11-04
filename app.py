@@ -1,3 +1,4 @@
+import mimetypes
 import os
 from datetime import datetime, timedelta
 from flask import Flask, render_template
@@ -51,6 +52,12 @@ def seed_defaults():
         for s in get_local_seed():
             db.session.add(MedicalSign(label=s["label"], category=s["category"], description=s["description"]))
         db.session.commit()
+
+
+# Browsers refuse module scripts and WebAssembly served with the wrong type (ONNX Runtime Web).
+mimetypes.add_type("text/javascript", ".mjs")
+mimetypes.add_type("application/wasm", ".wasm")
+mimetypes.add_type("application/octet-stream", ".onnx")
 
 
 def upgrade_schema():

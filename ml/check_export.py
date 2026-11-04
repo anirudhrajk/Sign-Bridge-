@@ -54,7 +54,7 @@ def main():
     d = np.load(cache_path(args.lang), allow_pickle=True)
     seqs, labels = d["seqs"], d["labels"]
     _, va = split(labels, 0.2, 7, d["signers"] if "signers" in d.files else None)
-    probs = np.stack([forward(m, t, sequence_features(seqs[i])) for i in va])
+    probs = np.stack([forward(m, t, sequence_features(seqs[i], m.get("velocity", False))) for i in va])
     top1 = (probs.argmax(1) == labels[va]).mean()
     print(f"exported model, numpy: val top1 {top1:.3f} on {len(va)} held-out recordings")
 
@@ -63,7 +63,7 @@ def main():
         for i in va[:: max(1, len(va) // 6)][:6]:
             s = np.asarray(seqs[i], dtype=np.float32)
             frames = [[None if np.isnan(p).any() else [float(p[0]), float(p[1])] for p in f] for f in s]
-            p = forward(m, t, sequence_features(s))
+            p = forward(m, t, sequence_features(s, m.get("velocity", False)))
             top = np.argsort(-p)[:3]
             cases.append({"label": m["classes"][labels[i]], "frames": frames,
                           "expect": [{"index": int(k), "p": float(p[k])} for k in top]})

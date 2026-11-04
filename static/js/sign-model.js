@@ -72,13 +72,18 @@
   }
 
   class SignModel {
+    /** Loads whichever model the folder holds: v2 (model.onnx) or v1 (weights.bin). */
     static async load(base) {
-      const [manifest, buf] = await Promise.all([
-        fetch(`${base}/model.json`).then(r => { if (!r.ok) throw new Error('model.json'); return r.json(); }),
-        fetch(`${base}/weights.bin`).then(r => { if (!r.ok) throw new Error('weights.bin'); return r.arrayBuffer(); }),
-      ]);
+      const manifest = await fetch(`${base}/model.json`).then(r => { if (!r.ok) throw new Error('model.json'); return r.json(); });
+      if (manifest.format === 2) return window.SignModelV2.create(base, manifest);
+      const buf = await fetch(`${base}/weights.bin`).then(r => { if (!r.ok) throw new Error('weights.bin'); return r.arrayBuffer(); });
       return new SignModel(manifest, new Float32Array(buf));
     }
+
+    get wrists() { return [7, 28]; }
+    get P() { return 49; }
+    toPoints(res) { return holisticToPoints(res); }
+    hasHand(f) { return hasHand(f); }
 
     constructor(m, data) {
       this.m = m;
@@ -102,6 +107,18 @@
       for (let t = 0; t < T; t++) {
         const src = seq.length === 1 ? 0 : Math.round((t * (seq.length - 1)) / (T - 1));
         frameFeatures(seq[src], x, t * F);
+      }
+      // Optional motion features (ml/features.py add_velocity): change of the 49 positions since
+      // the previous frame, zero for a hand that is missing in either frame.
+      if (this.m.velocity) {
+        for (let t = 1; t < T; t++) {
+          const o = t * F, p = (t - 1) * F;
+          const lOk = x[o + 182] > 0 && x[p + 182] > 0, rOk = x[o + 183] > 0 && x[p + 183] > 0;
+          for (let j = 0; j < 98; j++) {
+            const ok = j < 14 || (j < 56 ? lOk : rOk);
+            x[o + 184 + j] = ok ? x[o + j] - x[p + j] : 0;
+          }
+        }
       }
       const mean = this.t.mean.data, std = this.t.std.data;
       for (let t = 0; t < T; t++) for (let f = 0; f < F; f++) x[t * F + f] = (x[t * F + f] - mean[f]) / std[f];

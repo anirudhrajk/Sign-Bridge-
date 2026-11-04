@@ -170,7 +170,7 @@ def _valid_frames(frames):
     if not isinstance(frames, list) or not 8 <= len(frames) <= 150:
         return False
     for f in frames:
-        if not isinstance(f, list) or len(f) != 49:
+        if not isinstance(f, list) or len(f) not in (49, 127) or len(f) != len(frames[0]):
             return False
         for p in f:
             if p is not None and not (isinstance(p, list) and len(p) == 2 and all(isinstance(v, (int, float)) for v in p)):

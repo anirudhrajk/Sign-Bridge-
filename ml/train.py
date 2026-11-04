@@ -21,7 +21,9 @@ import torch.nn.functional as F
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from ml.labels import display  # noqa: E402
-from ml.features import FEAT_DIM, SEQ_LEN, frames_features, resample, trim  # noqa: E402
+from ml.webcam_sim import webcam  # noqa: E402
+from ml.features import FEAT_DIM, SEQ_LEN, VEL_DIM, add_velocity, frames_features, resample, trim  # noqa: E402
+USE_VEL = False  # set from --velocity
 
 LANGS = {"isl": "Indian Sign Language", "asl": "American Sign Language"}
 
@@ -33,6 +35,8 @@ def cache_path(lang):
 def export_dir(lang):
     return ROOT / "static" / "models" / lang
 
+WEBCAM_P = 0.5  # share of training samples shown webcam-style (set from --webcam)
+
 # Swap the signer's left and right when mirroring (pose pairs and the two hands).
 MIRROR = np.arange(49)
 MIRROR[[1, 2, 3, 4, 5, 6]] = [2, 1, 4, 3, 6, 5]
@@ -40,9 +44,9 @@ MIRROR[7:28], MIRROR[28:49] = np.arange(28, 49), np.arange(7, 28)
 
 
 class SignNet(nn.Module):
-    def __init__(self, n_classes, width=160, drop=0.35):
+    def __init__(self, n_classes, width=160, drop=0.35, in_dim=FEAT_DIM):
         super().__init__()
-        self.inp = nn.Linear(FEAT_DIM, width)
+        self.inp = nn.Linear(in_dim, width)
         self.blocks = nn.ModuleList()
         for k, d in ((5, 1), (5, 2), (3, 4)):
             self.blocks.append(nn.ModuleDict({
@@ -77,6 +81,8 @@ def augment(seq, rng):
     shift = rng.uniform(-0.08, 0.08, size=2).astype(np.float32)
     seq = (seq - 0.5) @ rot.T * scale + 0.5 + shift
     seq += rng.normal(0, 0.004, size=seq.shape).astype(np.float32)
+    if rng.random() < WEBCAM_P:  # laptop webcam: close framing, hands leave the picture, lower fps
+        seq = webcam(seq, rng)
     if rng.random() < 0.3:  # the tracker briefly loses a hand
         lost = rng.random(len(seq)) < 0.15
         hand = slice(7, 28) if rng.random() < 0.5 else slice(28, 49)
@@ -85,12 +91,13 @@ def augment(seq, rng):
 
 
 def featurize(seqs, rng=None):
-    out = np.empty((len(seqs), SEQ_LEN, FEAT_DIM), dtype=np.float32)
+    out = np.empty((len(seqs), SEQ_LEN, FEAT_DIM + (VEL_DIM if USE_VEL else 0)), dtype=np.float32)
     for i, s in enumerate(seqs):
         s = trim(np.asarray(s, dtype=np.float32))
         if rng is not None:
             s = augment(s, rng)
-        out[i] = frames_features(resample(s))
+        f = frames_features(resample(s))
+        out[i] = add_velocity(f) if USE_VEL else f
     return out
 
 
@@ -153,7 +160,7 @@ def export(model, mean, std, classes, categories, metrics, lang, out=None):
     manifest = {
         "version": time.strftime("%Y%m%d-%H%M"),
         "lang": lang, "language": LANGS[lang],
-        "seq_len": SEQ_LEN, "feat_dim": FEAT_DIM,
+        "seq_len": SEQ_LEN, "feat_dim": FEAT_DIM + (VEL_DIM if USE_VEL else 0), "velocity": USE_VEL,
         "blocks": [{"kernel": b["conv"].kernel_size[0], "dilation": b["conv"].dilation[0]} for b in model.blocks],
         "tensors": layout,
         "classes": classes, "labels": [display(c) for c in classes], "categories": categories,
@@ -169,6 +176,8 @@ def main():
     ap.add_argument("--epochs", type=int, default=120)
     ap.add_argument("--width", type=int, default=160)
     ap.add_argument("--eval-every", type=int, default=10)
+    ap.add_argument("--webcam", type=float, default=0.5, help="share of samples shown webcam-style")
+    ap.add_argument("--velocity", action="store_true", help="add motion features")
     ap.add_argument("--per-batch", action="store_true", help="build features per batch (low memory)")
     ap.add_argument("--no-export", action="store_true", help="train and report only (for testing)")
     ap.add_argument("--hold-out-classes", type=int, default=0,
@@ -179,6 +188,9 @@ def main():
     ap.add_argument("--full", action="store_true", help="train on all data after validating (for export)")
     args = ap.parse_args()
 
+    global WEBCAM_P, USE_VEL
+    WEBCAM_P = args.webcam
+    USE_VEL = args.velocity
     torch.manual_seed(args.seed)
     torch.set_num_threads(max(1, torch.get_num_threads()))
     d = np.load(cache_path(args.lang), allow_pickle=True)
@@ -201,15 +213,15 @@ def main():
     # Normalisation stats from a sample (enough for stable means, and fits in memory).
     sample = np.random.default_rng(args.seed).choice(tr, size=min(len(tr), 6000), replace=False)
     base = featurize(seqs[sample])
-    mean = base.reshape(-1, FEAT_DIM).mean(0)
-    std = base.reshape(-1, FEAT_DIM).std(0) + 1e-4
+    mean = base.reshape(-1, base.shape[-1]).mean(0)
+    std = base.reshape(-1, base.shape[-1]).std(0) + 1e-4
     del base
     Xva = ((featurize(seqs[va]) - mean) / std).astype(np.float32)
     yva = labels[va]
     # Large datasets: build each batch's features as needed instead of the whole epoch at once.
     per_batch = args.per_batch or len(tr) > 20000
 
-    model = SignNet(len(classes), width=args.width)
+    model = SignNet(len(classes), width=args.width, in_dim=FEAT_DIM + (VEL_DIM if USE_VEL else 0))
     opt = torch.optim.AdamW(model.parameters(), lr=2e-3, weight_decay=0.05)
     steps_per_epoch = math.ceil(len(tr) / 64)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=2e-3, total_steps=args.epochs * steps_per_epoch)

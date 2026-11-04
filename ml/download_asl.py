@@ -30,11 +30,12 @@ import requests
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from ml.prepare_data import load  # noqa: E402
+from ml.prepare_data import load as load_v1  # noqa: E402
+from ml import landmarks_v2  # noqa: E402
 
 COMP = "asl-signs"
 OUT = ROOT / "data" / "asl"
-SHARDS = OUT / "shards"
+SHARDS = OUT / "shards"  # replaced by --v2 (127 points) below
 SHARD_SIZE = 2000
 CHUNK = 48 * 1024 * 1024  # bytes fetched per range request
 
@@ -152,9 +153,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--limit", type=int, default=0, help="only this many recordings (for testing)")
+    ap.add_argument("--v2", action="store_true", help="keep 127 points (lips, eyes, nose) in data/asl/shards_v2")
     ap.add_argument("--clips", action="store_true",
                     help="fetch the full recordings listed in data/asl/clip_choices.json (for the avatar)")
     args = ap.parse_args()
+    global SHARDS, load
+    load = landmarks_v2.load if args.v2 else load_v1
+    if args.v2:
+        SHARDS = OUT / "shards_v2"
 
     SHARDS.mkdir(parents=True, exist_ok=True)
     (OUT / "raw_index").mkdir(parents=True, exist_ok=True)

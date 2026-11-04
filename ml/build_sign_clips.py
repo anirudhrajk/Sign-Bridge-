@@ -198,7 +198,7 @@ def main():
         best, best_score = None, -1
         for i in cand:
             seq = np.asarray(cache["seqs"][i], dtype=np.float32)
-            p = forward(m, t, sequence_features(seq))[c]
+            p = forward(m, t, sequence_features(seq, m.get("velocity", False)))[c]
             hands = (~np.isnan(seq[:, 7:49, 0]).all(1)).mean()
             score = p * (0.5 + 0.5 * hands)
             if score > best_score:

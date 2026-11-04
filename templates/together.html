@@ -64,6 +64,8 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='vendor/holistic/holistic.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/onnxruntime/ort.wasm.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sign-model-v2.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sign-model.js') }}"></script>
 <script src="{{ url_for('static', filename='js/avatar.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sign-planner.js') }}"></script>

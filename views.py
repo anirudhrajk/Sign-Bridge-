@@ -28,13 +28,13 @@ def welcome():
 
 # ---------- offline support ----------
 OFFLINE_PAGES = ["/together", "/offline", "/"]
-SKIP_FROM_PRECACHE = {"README.md", "pose_landmark_full.tflite", "sw.js"}
+SKIP_FROM_PRECACHE = {"README.md", "README.txt", "pose_landmark_full.tflite", "sw.js"}
 
 
 def _precache_files():
     static = Path(current_app.static_folder)
     globs = ["css/*.css", "js/*.js", "icons/*.png", "icon.svg", "manifest.webmanifest",
-             "models/*/model.json", "models/*/weights.bin", "signs/*/clips.json", "signs/*/clips.bin", "vendor/holistic/*"]
+             "models/*/model.json", "models/*/weights.bin", "models/*/model.onnx", "vendor/onnxruntime/*", "signs/*/clips.json", "signs/*/clips.bin", "vendor/holistic/*"]
     files = sorted({f for g in globs for f in static.glob(g) if f.is_file() and f.name not in SKIP_FROM_PRECACHE})
     return static, files
 

@@ -16,7 +16,8 @@ import numpy as np
 POSE_IDS = [0, 11, 12, 13, 14, 15, 16]
 N_POINTS = 49
 SEQ_LEN = 32
-FEAT_DIM = 49 * 2 + 42 * 2 + 2  # 184
+FEAT_DIM = 49 * 2 + 42 * 2 + 2  # 184 per frame
+VEL_DIM = 49 * 2                  # optional motion: frame-to-frame change of the 49 positions
 
 
 def frames_features(P):
@@ -66,6 +67,19 @@ def resample(seq, length=SEQ_LEN):
     return seq[pos]
 
 
-def sequence_features(seq):
-    """seq: (frames, 49, 2) -> (SEQ_LEN, FEAT_DIM)."""
-    return frames_features(resample(trim(np.asarray(seq, dtype=np.float32))))
+def add_velocity(f):
+    """Append how far each point moved since the previous frame (0 where a hand is missing)."""
+    g = f[:, :98]
+    v = np.zeros_like(g)
+    v[1:] = g[1:] - g[:-1]
+    for flag, cols in ((f[:, 182], slice(14, 56)), (f[:, 183], slice(56, 98))):
+        both = np.zeros(len(f), dtype=bool)
+        both[1:] = (flag[1:] > 0) & (flag[:-1] > 0)
+        v[~both, cols] = 0.0
+    return np.concatenate([f, v], 1).astype(np.float32)
+
+
+def sequence_features(seq, velocity=False):
+    """seq: (frames, 49, 2) -> (SEQ_LEN, FEAT_DIM [+ VEL_DIM])."""
+    f = frames_features(resample(trim(np.asarray(seq, dtype=np.float32))))
+    return add_velocity(f) if velocity else f
