@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from ml import landmarks_v2 as L  # noqa: E402
 from ml.train import split  # noqa: E402
-from ml.train_v2 import T, T_IN, Exported, SignNetV2  # noqa: E402
+from ml.train_v2 import T, T_IN  # noqa: E402
 
 TRAIN_MIRROR = None
 
@@ -94,10 +94,8 @@ def main():
     out = Path(args.dir) if args.dir else ROOT / "data" / "models_v2" / args.lang
     m = json.loads((out / "model.json").read_text())
     sess = ort.InferenceSession(str(out / "model.onnx"), providers=["CPUExecutionProvider"])
-    ck = torch.load(out / "model.pt", map_location="cpu")
-    net = SignNetV2(len(m["classes"]), d=ck["args"]["dim"], repeats=ck["args"]["repeats"])
-    net.load_state_dict(ck["state"])
-    exp = Exported(net.eval())
+    from ml.ensemble_v2 import load_exported
+    exp = load_exported(out)  # one model, or several averaged (ml/ensemble_v2.py)
 
     d = np.load(ROOT / "data" / "cache_v2" / f"{args.lang}.npz", allow_pickle=True)
     X, labels, signers, cats = d["X"], d["labels"], d["signers"], d["categories"].tolist()

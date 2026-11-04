@@ -48,15 +48,27 @@ def asl():
     shards = sorted((ROOT / "data" / "asl" / "shards_v2").glob("shard_*.npz"))
     if not shards:
         sys.exit("No v2 ASL shards. Run: py -3.11 ml/download_asl.py --v2")
-    X, signs, signers, ids = [], [], [], []
+    # Fill one preallocated array shard by shard, so memory stays near the final size.
+    readable = []
+    for s in shards:  # skip files a running download is still writing
+        try:
+            readable.append((s, len(np.load(s, allow_pickle=True)["sign"])))
+        except Exception:
+            print("skipping incomplete", s.name)
+    shards, counts = [s for s, _ in readable], [n for _, n in readable]
+    X = np.empty((sum(counts), FRAMES, 127, 2), dtype=np.float16)
+    signs, signers, ids, seen, i = [], [], [], set(), 0
     for s in shards:
         d = np.load(s, allow_pickle=True)
-        X += [fixed(q) for q in d["seqs"]]
-        signs += d["sign"].tolist()
-        signers += d["participant_id"].tolist()
-        ids += d["sequence_id"].tolist()
+        for q, sg, who, sid in zip(d["seqs"], d["sign"], d["participant_id"], d["sequence_id"]):
+            if int(sid) in seen:  # a recording saved twice (interrupted runs): keep one
+                continue
+            seen.add(int(sid))
+            X[i] = fixed(q)
+            signs.append(sg); signers.append(int(who)); ids.append(int(sid)); i += 1
+    X = X[:i]
     classes = sorted(set(signs))
-    return (np.stack(X), np.array([classes.index(x) for x in signs]), classes, ["asl"] * len(classes),
+    return (X, np.array([classes.index(x) for x in signs]), classes, ["asl"] * len(classes),
             np.array(signers), np.array(ids))
 
 

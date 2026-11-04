@@ -2,8 +2,8 @@
 MediaPipe Holistic, so video never leaves the patient's device. The server only needs
 to know which sign languages have a trained model and which signs each one knows.
 
-Each language lives in static/models/<code>/ (model.json + weights.bin). Train a new one
-with `python ml/prepare_data.py --lang <code>` and `python ml/train.py --lang <code>`.
+Each language lives in static/models/<code>/ (model.json + model.onnx, or weights.bin for v1).
+Train a new one with ml/prepare_v2.py and ml/train_v2.py (see ml/README.md).
 """
 import json
 from functools import lru_cache
