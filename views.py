@@ -26,6 +26,11 @@ def welcome():
     return render_template("welcome.html")
 
 
+@views_bp.route("/landing")
+def landing():
+    return render_template("landing.html")
+
+
 # ---------- offline support ----------
 OFFLINE_PAGES = ["/together", "/offline", "/"]
 SKIP_FROM_PRECACHE = {"README.md", "README.txt", "pose_landmark_full.tflite", "sw.js"}
