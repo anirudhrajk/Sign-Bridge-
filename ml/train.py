@@ -1,7 +1,7 @@
-"""Train the ISL sign classifier on the landmark cache.
+"""Train a sign classifier for one sign language on its landmark cache.
 
-  python ml/prepare_data.py    # once, builds data/cache/landmarks.npz
-  python ml/train.py           # trains, evaluates, exports static/models/isl/
+  python ml/prepare_data.py [--lang asl]   # once, builds data/cache/<lang>/landmarks.npz
+  python ml/train.py [--lang asl]          # trains, evaluates, exports static/models/<lang>/
 
 The model is a small temporal convolution network: fast enough to run in the browser
 on every new frame. Weights are exported as raw float32 for static/js/sign-model.js.
@@ -23,8 +23,15 @@ sys.path.insert(0, str(ROOT))
 from ml.labels import display  # noqa: E402
 from ml.features import FEAT_DIM, SEQ_LEN, frames_features, resample, trim  # noqa: E402
 
-CACHE = ROOT / "data" / "cache" / "landmarks.npz"
-EXPORT = ROOT / "static" / "models" / "isl"
+LANGS = {"isl": "Indian Sign Language", "asl": "American Sign Language"}
+
+
+def cache_path(lang):
+    return ROOT / "data" / "cache" / lang / "landmarks.npz"
+
+
+def export_dir(lang):
+    return ROOT / "static" / "models" / lang
 
 # Swap the signer's left and right when mirroring (pose pairs and the two hands).
 MIRROR = np.arange(49)
@@ -87,8 +94,15 @@ def featurize(seqs, rng=None):
     return out
 
 
-def split(labels, val_frac, seed):
+def split(labels, val_frac, seed, signers=None):
+    """Hold out whole signers when we know who signed (an honest test on new people);
+    otherwise hold out a random share of each sign's recordings."""
     rng = np.random.default_rng(seed)
+    if signers is not None and (np.asarray(signers) >= 0).all() and len(np.unique(signers)) >= 5:
+        people = rng.permutation(np.unique(signers))
+        held = people[:max(1, int(round(len(people) * val_frac)))]
+        mask = np.isin(signers, held)
+        return np.flatnonzero(~mask), np.flatnonzero(mask)
     tr, va = [], []
     for c in np.unique(labels):
         idx = rng.permutation(np.flatnonzero(labels == c))
@@ -106,8 +120,9 @@ def evaluate(model, X, y):
     return float((top[:, 0] == y).mean()), float((top == y[:, None]).any(1).mean()), logits.softmax(1).numpy()
 
 
-def export(model, mean, std, classes, categories, metrics):
+def export(model, mean, std, classes, categories, metrics, lang):
     """Fold BatchNorm into the convolutions and write raw float32 weights + a JSON manifest."""
+    EXPORT = export_dir(lang)
     EXPORT.mkdir(parents=True, exist_ok=True)
     model.eval()
     tensors, layout = [], []
@@ -133,6 +148,7 @@ def export(model, mean, std, classes, categories, metrics):
     (EXPORT / "weights.bin").write_bytes(blob.tobytes())
     manifest = {
         "version": time.strftime("%Y%m%d-%H%M"),
+        "lang": lang, "language": LANGS[lang],
         "seq_len": SEQ_LEN, "feat_dim": FEAT_DIM,
         "blocks": [{"kernel": b["conv"].kernel_size[0], "dilation": b["conv"].dilation[0]} for b in model.blocks],
         "tensors": layout,
@@ -145,7 +161,9 @@ def export(model, mean, std, classes, categories, metrics):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--epochs", type=int, default=160)
+    ap.add_argument("--lang", default="isl", choices=sorted(LANGS))
+    ap.add_argument("--epochs", type=int, default=120)
+    ap.add_argument("--width", type=int, default=160)
     ap.add_argument("--val", type=float, default=0.2)
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--full", action="store_true", help="train on all data after validating (for export)")
@@ -153,10 +171,11 @@ def main():
 
     torch.manual_seed(args.seed)
     torch.set_num_threads(max(1, torch.get_num_threads()))
-    d = np.load(CACHE, allow_pickle=True)
+    d = np.load(cache_path(args.lang), allow_pickle=True)
+    signers = d["signers"] if "signers" in d.files else None
     seqs, labels = d["seqs"], d["labels"]
     classes, categories = d["classes"].tolist(), d["categories"].tolist()
-    tr, va = split(labels, args.val, args.seed)
+    tr, va = split(labels, args.val, args.seed, signers)
     if args.full:
         tr = np.arange(len(labels))
     print(f"train {len(tr)}  val {len(va)}  classes {len(classes)}")
@@ -167,7 +186,7 @@ def main():
     Xva = (featurize(seqs[va]) - mean) / std
     yva = labels[va]
 
-    model = SignNet(len(classes))
+    model = SignNet(len(classes), width=args.width)
     opt = torch.optim.AdamW(model.parameters(), lr=2e-3, weight_decay=0.05)
     steps_per_epoch = math.ceil(len(tr) / 64)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=2e-3, total_steps=args.epochs * steps_per_epoch)
@@ -210,8 +229,10 @@ def main():
             m = conf >= th
             print(f"  confidence >= {th}: answers {m.mean():.2f} of signs, correct {right[m].mean() if m.any() else 0:.3f}")
         if not args.full:
-            metrics.update({"val_top1": round(top1, 4), "val_top5": round(top5, 4), "val_samples": int(len(va))})
-    export(model, mean, std, classes, categories, metrics)
+            new_people = signers is not None and bool((np.asarray(signers) >= 0).all())
+            metrics.update({"val_top1": round(top1, 4), "val_top5": round(top5, 4), "val_samples": int(len(va)),
+                            "val_new_signers": new_people})
+    export(model, mean, std, classes, categories, metrics, args.lang)
 
 
 if __name__ == "__main__":

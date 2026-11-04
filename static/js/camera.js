@@ -24,9 +24,21 @@
   const confidences = [];
 
   // ---------- model ----------
-  SignModel.load('/static/models/isl').then(m => {
+  const lang = document.getElementById('translator').dataset.lang || 'isl';
+  const picker = $('langPicker');
+  picker?.addEventListener('change', async () => {
+    picker.disabled = true;
+    const res = await fetch('/api/preferences/sign-language', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: picker.value }),
+    });
+    if (res.ok) location.reload();
+    else { picker.disabled = false; picker.value = lang; SignBridge.toast('Could not switch sign language.'); }
+  });
+
+  SignModel.load(`/static/models/${lang}`).then(m => {
     model = m;
-    modelStatus.textContent = `${m.classes.length} signs ready`;
+    modelStatus.textContent = `${lang.toUpperCase()} · ${m.classes.length} signs ready`;
     modelStatus.classList.add('chip--soft');
     buildIndex(m);
     if (running) nowBtn.disabled = false;

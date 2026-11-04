@@ -16,10 +16,10 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from ml.features import sequence_features  # noqa: E402
-from ml.train import CACHE, EXPORT, split  # noqa: E402
+from ml.train import LANGS, cache_path, export_dir, split  # noqa: E402
 
 
-def load():
+def load(EXPORT):
     m = json.loads((EXPORT / "model.json").read_text())
     blob = np.frombuffer((EXPORT / "weights.bin").read_bytes(), dtype=np.float32)
     t = {x["name"]: blob[x["offset"]:x["offset"] + int(np.prod(x["shape"]))].reshape(x["shape"]) for x in m["tensors"]}
@@ -47,11 +47,13 @@ def forward(m, t, feats):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--parity", action="store_true")
+    ap.add_argument("--lang", default="isl", choices=sorted(LANGS))
     args = ap.parse_args()
-    m, t = load()
-    d = np.load(CACHE, allow_pickle=True)
+    EXPORT = export_dir(args.lang)
+    m, t = load(EXPORT)
+    d = np.load(cache_path(args.lang), allow_pickle=True)
     seqs, labels = d["seqs"], d["labels"]
-    _, va = split(labels, 0.2, 7)
+    _, va = split(labels, 0.2, 7, d["signers"] if "signers" in d.files else None)
     probs = np.stack([forward(m, t, sequence_features(seqs[i])) for i in va])
     top1 = (probs.argmax(1) == labels[va]).mean()
     print(f"exported model, numpy: val top1 {top1:.3f} on {len(va)} held-out recordings")

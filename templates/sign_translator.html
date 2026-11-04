@@ -2,9 +2,19 @@
 {% block title %}Sign to your doctor · SignBridge{% endblock %}
 {% block page_title %}Sign to your doctor{% endblock %}
 {% block page_sub %}Sign one word at a time, then pause or lower your hands. Check the message before you send it.{% endblock %}
+{% block topbar_actions %}
+{% if languages|length > 1 %}
+<label class="lang-pick">
+  <span class="visually-hidden">Sign language</span>
+  <select id="langPicker" class="btn btn--ghost btn--sm" aria-label="Sign language">
+    {% for l in languages %}<option value="{{ l.code }}" {{ 'selected' if l.code == lang }}>{{ l.name }}</option>{% endfor %}
+  </select>
+</label>
+{% endif %}
+{% endblock %}
 {% block content %}
 
-<section class="translator">
+<section class="translator" id="translator" data-lang="{{ lang }}">
   <div class="card translator__camera">
     <div class="camera-frame" id="cameraFrame">
       <video id="cameraFeed" autoplay playsinline muted></video>

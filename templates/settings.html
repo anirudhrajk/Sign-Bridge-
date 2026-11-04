@@ -20,6 +20,12 @@
     <div class="card">
       <h2>Display</h2>
       <div class="settings-row">
+        <div><strong>Sign language</strong><small>{% if languages|length > 1 %}The sign language SignBridge reads from your camera.{% else %}More sign languages are being added.{% endif %}</small></div>
+        <select id="langPicker" class="btn btn--ghost btn--sm" aria-label="Sign language" {{ 'disabled' if languages|length < 2 }}>
+          {% for l in languages %}<option value="{{ l.code }}" {{ 'selected' if l.code == lang }}>{{ l.name }} · {{ l.signs }} signs</option>{% endfor %}
+        </select>
+      </div>
+      <div class="settings-row">
         <div><strong>Theme</strong><small>Follow your device, or pick one.</small></div>
         <select id="themePicker" class="btn btn--ghost btn--sm" aria-label="Theme">
           <option value="">Device</option><option value="light">Light</option><option value="dark">Dark</option>
@@ -55,6 +61,13 @@
 {% block scripts %}
 <script>
 (() => {
+  const lp = document.getElementById('langPicker');
+  lp?.addEventListener('change', async () => {
+    const res = await fetch('/api/preferences/sign-language', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: lp.value }),
+    });
+    SignBridge.toast(res.ok ? 'Sign language updated.' : 'Could not change sign language.');
+  });
   const picker = document.getElementById('themePicker');
   try { picker.value = localStorage.getItem('sb-theme') || ''; } catch (e) {}
   picker.addEventListener('change', () => {

@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from extensions import db
 from models import Session, Message, Phrase
-from services.sign_recognition import supported_signs, model_info
+from services.sign_recognition import supported_signs, model_info, available_languages, resolve_language
 from services.language_processing import sentence_to_signs
 from services.audit import log_action
 from services.consent import CONSENT_PURPOSES, grant_consent, revoke_consent
@@ -22,7 +22,20 @@ def _open_session_for_patient():
 @api_bp.get("/signs")
 @login_required
 def signs_index():
-    return jsonify({"signs": supported_signs(), "model": model_info()})
+    lang = resolve_language(request.args.get("lang") or current_user.sign_language)
+    return jsonify({"signs": supported_signs(lang), "model": model_info(lang), "languages": available_languages()})
+
+
+@api_bp.post("/preferences/sign-language")
+@login_required
+def set_sign_language():
+    code = (request.get_json(silent=True) or {}).get("code", "")
+    if code not in {x["code"] for x in available_languages()}:
+        return jsonify({"error": "That sign language is not available yet"}), 400
+    current_user.sign_language = code
+    db.session.commit()
+    log_action("sign_language_changed", code)
+    return jsonify({"ok": True, "code": code})
 
 
 @api_bp.post("/messages")

@@ -61,6 +61,8 @@ def upgrade_schema():
             conn.execute(text("ALTER TABLE users ADD COLUMN google_sub VARCHAR(64)"))
         if "avatar_url" not in cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512)"))
+        if "sign_language" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN sign_language VARCHAR(8) DEFAULT 'isl'"))
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users (google_sub)"))
 
 

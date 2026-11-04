@@ -5,6 +5,7 @@ from models import Session, Message, MedicalSign, Phrase, AuditLog, User
 from services.emergency import get_default_phrases
 from services.dictionary import get_local_seed
 from services.audit import log_action
+from services.sign_recognition import available_languages, resolve_language
 from services.consent import consent_status, has_consent
 from datetime import datetime, timedelta
 
@@ -54,7 +55,9 @@ def sign_translator():
     if not has_consent(current_user.id, "camera_capture"):
         flash("Please grant camera consent first.", "warning")
         return redirect(url_for("views.consent"))
-    return render_template("sign_translator.html")
+    languages = available_languages()
+    lang = resolve_language(current_user.sign_language)
+    return render_template("sign_translator.html", languages=languages, lang=lang)
 
 
 @views_bp.route("/patient/emergency")
@@ -161,7 +164,8 @@ def dictionary():
 @views_bp.route("/settings")
 @login_required
 def settings():
-    return render_template("settings.html")
+    return render_template("settings.html", languages=available_languages(),
+                           lang=resolve_language(current_user.sign_language))
 
 
 @views_bp.route("/settings/delete-data", methods=["POST"])

@@ -18,6 +18,7 @@ class User(UserMixin, db.Model):
     is_active = db.Column(db.Boolean, default=True)
     google_sub = db.Column(db.String(64), unique=True, index=True)  # Google account ID
     avatar_url = db.Column(db.String(512))
+    sign_language = db.Column(db.String(8), default="isl")  # which sign language model to use
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
