@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Home · SignBridge{% endblock %}
+{% block page_title %}Hello, {{ current_user.display_name.split(' ')[0] }}{% endblock %}
+{% block page_sub %}Sign to your doctor, read their replies, or call for help.{% endblock %}
+{% block content %}
+
+<section class="stat-grid">
+  <a class="stat stat--primary" href="{{ url_for('views.sign_translator') }}">
+    <svg class="icon"><use href="#i-hand"/></svg>
+    <div><strong>Sign to your doctor</strong><small>Your signs become text for the doctor</small></div>
+    <svg class="icon arrow"><use href="#i-arrow"/></svg>
+  </a>
+  <a class="stat stat--warning" href="{{ url_for('views.emergency') }}">
+    <svg class="icon"><use href="#i-alert"/></svg>
+    <div><strong>Emergency</strong><small>Big buttons, one tap to send</small></div>
+    <svg class="icon arrow"><use href="#i-arrow"/></svg>
+  </a>
+  <a class="stat" href="{{ url_for('views.pain_report') }}">
+    <svg class="icon"><use href="#i-person"/></svg>
+    <div><strong>Where does it hurt?</strong><small>Tap the body and pain level</small></div>
+    <svg class="icon arrow"><use href="#i-arrow"/></svg>
+  </a>
+</section>
+
+<section class="tool-row">
+  <a class="btn btn--ghost" href="{{ url_for('views.deaf_card') }}"><svg class="icon"><use href="#i-hand"/></svg> My Deaf patient card</a>
+  <button class="btn btn--ghost" type="button" id="askInterpreter"><svg class="icon"><use href="#i-users"/></svg> Ask for an interpreter</button>
+  <a class="btn btn--ghost" href="{{ url_for('views.visit_summary', session_id=session.id) }}"><svg class="icon"><use href="#i-book"/></svg> Visit summary</a>
+</section>
+
+<section class="two-col">
+  <div class="card">
+    <header class="card__head">
+      <h2>Your conversation</h2>
+      <span class="chip chip--soft"><span class="dot"></span> {{ session.status|capitalize }}</span>
+    </header>
+    <ul class="message-list message-list--chat" data-live-messages data-session-id="{{ session.id }}" data-viewer="patient"
+        data-empty="No messages yet. Tap 'Sign to your doctor' to start."></ul>
+  </div>
+
+  <div style="display:grid;gap:18px">
+  <div class="card">
+    <header class="card__head"><h2>Your doctor, in sign</h2><span class="chip chip--soft" id="avatarBadge">ISL</span></header>
+    {% set avatar_id = 'patientAvatar' %}
+    {% set avatar_hint = "When your doctor replies, it will be signed here." %}
+    {% include "_avatar.html" %}
+  </div>
+
+  <div class="card">
+    <header class="card__head"><h2>Quick phrases</h2><span class="muted small">Sends instantly</span></header>
+    <div class="quick-grid">
+      {% for p in emergency[:6] %}
+      <button class="quick" type="button" data-quick-phrase="{{ p.text }}">
+        <svg class="icon"><use href="#i-alert"/></svg>
+        <span>{{ p.text }}</span>
+      </button>
+      {% endfor %}
+    </div>
+    <a class="btn btn--ghost btn--block mt" href="{{ url_for('views.emergency') }}">Open emergency screen</a>
+  </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/avatar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sign-planner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/avatar-ui.js') }}"></script>
+<script>
+document.getElementById('avatarBadge').textContent = '{{ avatar_lang|upper }}';
+document.getElementById('askInterpreter').addEventListener('click', async e => {
+  e.currentTarget.disabled = true;
+  if (await SignBridge.sendMessage('I am Deaf. Please book a sign language interpreter for me.', 'request')) SignBridge.toast('Staff have been asked for an interpreter.');
+  else e.currentTarget.disabled = false;
+});
+</script>
+<script src="{{ url_for('static', filename='js/live.js') }}" defer></script>
+{% endblock %}

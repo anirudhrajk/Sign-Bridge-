@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar %}
+{% block title %}Admin · SignBridge{% endblock %}
+{% block page_title %}Administration{% endblock %}
+{% block page_sub %}Users and the audit trail required for DPDP compliance.{% endblock %}
+{% block content %}
+<div class="two-col">
+  <div class="card">
+    <header class="card__head"><h2>Users</h2><span class="chip">{{ users|length }}</span></header>
+    <ul class="list-rows">
+      {% for u in users %}
+      <li>
+        {{ avatar(u) }}
+        <div class="grow">
+          <p>{{ u.display_name }}</p>
+          <small>{{ u.email }}{% if u.google_sub %} · Google{% endif %}</small>
+        </div>
+        <span class="chip {{ 'chip--soft' if u.role != 'patient' else 'chip--accent' }}">{{ u.role|capitalize }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="card">
+    <header class="card__head"><h2>Audit log</h2><span class="muted small">Latest 50</span></header>
+    <ul class="list-rows">
+      {% for log in logs %}
+      <li>
+        <div class="grow">
+          <p>{{ log.action|replace('_', ' ')|capitalize }}</p>
+          <small>{{ log.detail }} · {{ log.created_at.strftime('%d %b, %H:%M') }}</small>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,81 @@
+{# Camera + recognised message. Used by the sign translator and the offline face-to-face mode. #}
+<section class="translator" id="translator" data-lang="{{ lang }}">
+  <div class="card translator__camera">
+    <div class="camera-frame" id="cameraFrame">
+      <video id="cameraFeed" autoplay playsinline muted></video>
+      <canvas id="landmarkCanvas"></canvas>
+      <div class="camera-empty" id="cameraEmpty">
+        <svg class="icon icon--xl"><use href="#i-hand"/></svg>
+        <p>Sit so your face, shoulders and both hands are in view.</p>
+      </div>
+      <div class="camera-status" id="cameraStatus">Camera off</div>
+      <div class="sign-meter" id="signMeter" hidden><span></span></div>
+    </div>
+    <div class="translator__controls">
+      <button class="btn btn--primary" id="startCameraBtn" type="button"><svg class="icon"><use href="#i-hand"/></svg> Start camera</button>
+      <button class="btn btn--ghost" id="stopCameraBtn" type="button" disabled>Stop</button>
+      <button class="btn btn--ghost" id="recognizeBtn" type="button" disabled title="Read the last two seconds now">Read sign now</button>
+    </div>
+    <div class="cam-check" id="camCheck" hidden>
+      <span data-check="body">Body</span><span data-check="left">Left hand</span><span data-check="right">Right hand</span><span class="muted" data-fps></span>
+    </div>
+    <p class="muted small" style="margin:0"><svg class="icon" style="width:14px;height:14px;vertical-align:-2px"><use href="#i-lock"/></svg> Video stays on this device. Only the text you send leaves it.</p>
+  </div>
+
+  <div class="card translator__result">
+    <header class="card__head"><h2>Your message</h2><span class="chip" id="modelStatus">Loading signs…</span></header>
+
+    <div class="result-box" id="resultBox" aria-live="polite">
+      <p class="empty">Signed words will appear here.</p>
+    </div>
+    <div class="alts" id="alts" hidden>
+      <span class="muted small" id="altsLabel">Not this word? Tap the right one:</span>
+      <div class="alts__list" id="altsList"></div>
+    </div>
+
+    <label class="field"><span>{{ message_label or 'Message to the doctor' }}</span>
+      <textarea id="messageEdit" rows="3" maxlength="2000" placeholder="Your signs build a message here. You can also type or fix words."></textarea>
+    </label>
+    <div class="translator__controls">
+      <button class="btn btn--ghost btn--sm" id="undoBtn" type="button" disabled>Remove last word</button>
+      <button class="btn btn--ghost btn--sm" id="clearBtn" type="button">Clear</button>
+    </div>
+    <button class="btn btn--primary btn--block btn--lg" id="confirmSendBtn" type="button" disabled>{{ send_label or 'Send to doctor' }}</button>
+  </div>
+</section>
+
+<section class="translator mt learn">
+  <details class="card sign-index" open>
+    <summary><strong>Signs SignBridge knows</strong> <span class="muted small" id="signCount"></span></summary>
+    <p class="muted small mt" style="margin-bottom:8px">Tap a word to see how it is signed, then copy it to practise.</p>
+    <label class="field"><span class="visually-hidden">Search signs</span><input type="search" id="signSearch" placeholder="Search, e.g. medicine"></label>
+    <div id="signIndex"></div>
+  </details>
+
+  <div style="display:grid;gap:18px;align-content:start">
+    <div class="card" id="learnCard" hidden>
+      <header class="card__head"><h2>How to sign <span id="learnWord"></span></h2>
+        <button class="btn btn--quiet btn--sm" type="button" id="learnClose">Close</button></header>
+      {% set avatar_id = 'learnAvatar' %}
+      {% set avatar_hint = 'Watch, then sign it yourself.' %}
+      {% include "_avatar.html" %}
+      <p class="practice" id="practiceNote">Now sign it to the camera. SignBridge will tell you if it recognised it.</p>
+    </div>
+
+    <div class="card">
+      <header class="card__head"><h2>Teach a new sign</h2><span class="chip" id="taughtCount">0 taught</span></header>
+      <p class="muted small" style="margin-top:-6px">For words SignBridge doesn't know yet, like <em>help</em> or <em>pain</em>. Sign it 5 times. Then it is recognised for everyone using this language on this clinic's SignBridge.</p>
+      <div class="teach-row">
+        <label class="visually-hidden" for="teachWord">Word to teach</label>
+        <input id="teachWord" type="text" maxlength="60" placeholder="Word, e.g. help" autocomplete="off">
+        <button class="btn btn--primary" id="teachStart" type="button">Start teaching</button>
+      </div>
+      <div class="teach-progress" id="teachProgress" hidden>
+        <div class="teach-dots" id="teachDots"></div>
+        <p id="teachText" class="small" style="margin:6px 0 0"></p>
+        <button class="btn btn--ghost btn--sm mt" id="teachCancel" type="button">Stop teaching</button>
+      </div>
+      <ul class="list-rows mt" id="taughtList"></ul>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Visit summary · SignBridge{% endblock %}
+{% block page_title %}Visit summary{% endblock %}
+{% block page_sub %}Everything said in this visit, to keep and read again later.{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn--primary" type="button" onclick="window.print()"><svg class="icon"><use href="#i-book"/></svg> <span>Print or save as PDF</span></button>
+{% endblock %}
+{% block content %}
+{% set from_doctor = messages|selectattr('direction', 'equalto', 'doctor_to_patient')|list %}
+<article class="card summary">
+  <header class="summary__head">
+    <div>
+      <p class="section-title">SignBridge visit summary</p>
+      <h2>{{ session.patient.display_name }}</h2>
+      <p class="muted">{{ session.created_at.strftime('%d %B %Y') }}{% if session.doctor %} · with {{ session.doctor.display_name }}{% endif %}</p>
+    </div>
+    <div class="summary__stats">
+      <span><strong>{{ messages|length }}</strong> messages</span>
+      <span><strong>{{ from_doctor|selectattr('understood', 'equalto', 'understood')|list|length }}</strong> of {{ from_doctor|length }} doctor messages confirmed understood</span>
+    </div>
+  </header>
+
+  {% if from_doctor %}
+  <section>
+    <h3>What the doctor said</h3>
+    <ul class="summary__list">
+      {% for m in from_doctor %}
+      <li>
+        <p>{{ m.body }}</p>
+        <small class="muted">{{ m.created_at.strftime('%H:%M') }} ·
+          {% if m.understood == 'understood' %}<span style="color:var(--success)">Patient understood</span>
+          {% elif m.understood %}Patient asked to {{ 'repeat' if m.understood == 'repeat' else 'simplify' }}
+          {% else %}Not confirmed{% endif %}</small>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section>
+    <h3>Full conversation</h3>
+    <ul class="summary__list summary__list--full">
+      {% for m in messages %}
+      <li class="{{ 'is-doctor' if m.direction == 'doctor_to_patient' }}">
+        <small class="muted">{{ m.created_at.strftime('%H:%M') }} · {{ m.sender.display_name }} · {{ m.source }}</small>
+        <p>{{ m.body }}</p>
+      </li>
+      {% else %}
+      <li class="empty">No messages in this visit.</li>
+      {% endfor %}
+    </ul>
+  </section>
+  <p class="muted small">SignBridge is a communication aid. If anything here is unclear, ask your doctor or a sign language interpreter.</p>
+</article>
+{% endblock %}

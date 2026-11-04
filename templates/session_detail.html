@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ session.patient.display_name }} · SignBridge{% endblock %}
+{% block page_title %}{{ session.patient.display_name }}{% endblock %}
+{% block page_sub %}Messages the patient confirmed, newest at the bottom.{% endblock %}
+{% block topbar_actions %}
+<a href="{{ url_for('views.voice_translator', session_id=session.id) }}" class="btn btn--primary"><svg class="icon"><use href="#i-mic"/></svg> <span>Reply by voice</span></a>
+{% endblock %}
+{% block content %}
+<div class="card note call-bar">
+  <div>
+    <strong>Ready to see this patient?</strong>
+    <small class="muted">Deaf patients can't hear their name being called. This flashes and vibrates their screen instead.</small>
+  </div>
+  <div class="call-bar__actions">
+    <label class="visually-hidden" for="callRoom">Room</label>
+    <input id="callRoom" class="call-bar__room" type="text" maxlength="40" placeholder="Room, e.g. Room 4">
+    <button class="btn btn--primary" id="callInBtn" type="button"><svg class="icon"><use href="#i-person"/></svg> Call patient in</button>
+    <a class="btn btn--ghost" href="{{ url_for('views.visit_summary', session_id=session.id) }}">Visit summary</a>
+  </div>
+</div>
+<div class="card mt">
+  <ul class="message-list message-list--chat" data-live-messages data-session-id="{{ session.id }}" data-viewer="staff"
+      data-empty="No messages yet in this conversation."></ul>
+  <form class="mt" id="replyForm" data-session-id="{{ session.id }}" style="border-top:1px solid var(--border);padding-top:16px">
+    <label class="field"><span>Type a reply</span>
+      <textarea id="replyText" rows="2" maxlength="2000" required placeholder="Short, simple sentences are easiest to read"></textarea>
+    </label>
+    <button class="btn btn--primary" type="submit">Send to patient</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/live.js') }}" defer></script>
+{% endblock %}

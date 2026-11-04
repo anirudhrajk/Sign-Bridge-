@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>SignBridge: clear conversations between deaf patients and doctors</title>
+  <meta name="description" content="SignBridge turns a patient's signs into text the doctor can read, and the doctor's words back into sign.">
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
+  <link rel="preload" href="{{ url_for('static', filename='landing/fonts/hanken-grotesk-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ url_for('static', filename='landing/landing.css') }}">
+  <script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+
+<div class="loader" id="loader" aria-hidden="true">
+  <span class="loader__count" id="loaderCount">0</span>
+  <span class="loader__line"><i id="loaderLine"></i></span>
+</div>
+
+<header class="bar">
+  <a class="brand" href="#top">SignBridge</a>
+  {% if current_user.is_authenticated %}
+    <a class="link" href="{{ url_for('views.dashboard') }}">Open SignBridge</a>
+  {% else %}
+    <a class="link" href="{{ url_for('auth.login') }}">Sign in</a>
+  {% endif %}
+</header>
+
+<main>
+  <section class="hero" id="top">
+    <div class="hero__copy">
+      <h1>
+        <span class="mask"><span>Every deaf patient</span></span>
+        <span class="mask"><span>deserves to be</span></span>
+        <span class="mask"><span>understood by</span></span>
+        <span class="mask"><span>their doctor.</span></span>
+      </h1>
+      <p class="lede" data-rise>SignBridge turns a patient's signs into text the doctor can read, and turns the doctor's words back into sign.</p>
+      <div class="actions" data-rise>
+        {% if current_user.is_authenticated %}
+          <a class="btn btn--solid" href="{{ url_for('views.dashboard') }}">Open SignBridge</a>
+        {% else %}
+          <a class="btn btn--solid" href="{{ url_for('auth.register') }}">Get started</a>
+        {% endif %}
+        <a class="btn" href="{{ url_for('views.together') }}">Try face-to-face mode</a>
+      </div>
+    </div>
+
+    <figure class="signer" data-rise>
+      <canvas id="signer" data-clips="{{ url_for('static', filename='signs/isl') }}" role="img" aria-label="A skeleton figure performing recorded Indian Sign Language movements"></canvas>
+      <figcaption>
+        <ol class="gloss" id="gloss" aria-hidden="true"></ol>
+        <p class="said said--patient" id="saidPatient">Hello doctor, I am sick.</p>
+        <p class="said said--doctor" id="saidDoctor">Where does it hurt?</p>
+        <button class="link signer__toggle" id="signerToggle" type="button" hidden>Pause signing</button>
+      </figcaption>
+    </figure>
+  </section>
+
+  <section class="statement">
+    <p id="statement">In a consultation, small details matter. A missed word about a symptom or a dose can change what happens next. SignBridge keeps both people in the conversation, in the language each of them uses.</p>
+  </section>
+
+  <section class="talk" id="how">
+    <div class="talk__pin">
+      <div class="talk__steps">
+        <h2>One conversation, two languages</h2>
+        <ol id="talkSteps">
+          <li class="is-on"><strong>The patient signs to the camera</strong><span>The phone or laptop tracks their hands and body. No video leaves the device.</span></li>
+          <li><strong>The patient checks the text</strong><span>They can fix any word first, so the doctor reads what was meant.</span></li>
+          <li><strong>The doctor replies by voice</strong><span>A signing avatar shows the reply, with each word captioned.</span></li>
+        </ol>
+      </div>
+      <div class="chat" id="talkChat" aria-hidden="true">
+        <p class="chat__line chat__line--patient" data-step="0"><small>Patient, signing</small>I have pain in my chest.</p>
+        <p class="chat__check" data-step="1"><span>Send to doctor</span><span>Edit</span></p>
+        <p class="chat__line chat__line--doctor" data-step="2"><small>Doctor, speaking</small>Is the pain sharp, or does it feel like pressure?</p>
+        <p class="chat__check chat__check--doctor" data-step="2"><span>I understand</span><span>Please repeat</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="deck" id="features">
+    <div class="deck__pin">
+      <h2>Made for the consulting room</h2>
+      <div class="deck__track" id="deckTrack">
+
+        <article class="tile">
+          <svg viewBox="0 0 400 240" aria-hidden="true"><g class="art art--patient"><path d="M200 200V126M200 200l-46-62-6-58M200 200l-16-82-3-74M200 200l14-84 6-78M200 200l40-66 16-56M200 200l62-30 40-48"/><g class="dots"><circle cx="200" cy="200" r="5"/><circle cx="148" cy="80" r="5"/><circle cx="181" cy="44" r="5"/><circle cx="220" cy="38" r="5"/><circle cx="256" cy="78" r="5"/><circle cx="302" cy="122" r="5"/></g></g></svg>
+          <div><h3>Sign to text</h3><p>The camera reads the sign on the device and shows the doctor clear English.</p></div>
+        </article>
+
+        <article class="tile">
+          <svg viewBox="0 0 400 240" aria-hidden="true"><g class="art art--doctor"><circle cx="200" cy="120" r="14"/><circle cx="200" cy="120" r="44"/><circle cx="200" cy="120" r="74"/><circle cx="200" cy="120" r="104"/></g></svg>
+          <div><h3>Speech to sign</h3><p>The doctor speaks or types. An avatar signs it back using recorded movements.</p></div>
+        </article>
+
+        <article class="tile">
+          <svg viewBox="0 0 400 240" aria-hidden="true"><g class="art art--quiet"><circle cx="200" cy="44" r="24"/><path d="M160 88c10-10 70-10 80 0l16 74M160 88l-16 74M170 92v126M230 92v126M170 150h60"/></g><circle class="pulse" cx="214" cy="108" r="9"/></svg>
+          <div><h3>Body map for pain</h3><p>Tap where it hurts, so the doctor can see the place and how bad it is.</p></div>
+        </article>
+
+        <article class="tile">
+          <svg viewBox="0 0 400 240" aria-hidden="true"><text class="art-text" x="200" y="104" text-anchor="middle">I can't breathe</text><text class="art-text art-text--dim" x="200" y="150" text-anchor="middle">I need help</text></svg>
+          <div><h3>Emergency phrases</h3><p>Large phrases reach staff in one tap, for the moments when signing is hard.</p></div>
+        </article>
+
+        <article class="tile">
+          <svg viewBox="0 0 400 240" aria-hidden="true"><g class="art art--patient"><rect x="96" y="48" width="208" height="144" rx="10"/><circle cx="140" cy="100" r="20"/><path d="M180 88h88M180 112h64M120 152h160"/></g></svg>
+          <div><h3>Deaf patient card</h3><p>A card to show staff at the front desk that explains how to communicate.</p></div>
+        </article>
+
+        <article class="tile">
+          <svg viewBox="0 0 400 240" aria-hidden="true"><g class="art art--quiet"><path d="M128 28h144v184H128z"/><path d="M152 66h96M152 96h96M152 126h96M152 156h56"/></g></svg>
+          <div><h3>Visit summary</h3><p>A printable record of what was said, to read again at home.</p></div>
+        </article>
+
+        <article class="tile">
+          <svg viewBox="0 0 400 240" aria-hidden="true"><g class="art art--patient"><path d="M60 120h130"/><path d="M60 120a56 56 0 0 1 112 0"/></g><g class="art art--doctor"><path d="M210 120h130"/><path d="M340 120a56 56 0 0 1-112 0"/></g></svg>
+          <div><h3>Face-to-face mode</h3><p>One screen shared across a table. It needs no internet and no server.</p></div>
+        </article>
+
+      </div>
+      <p class="deck__count" aria-hidden="true"><span id="deckNow">1</span> of <span id="deckAll">7</span></p>
+    </div>
+  </section>
+
+  <section class="team" id="team" hidden>
+    <h2>Meet Team VAAB</h2>
+    <p class="muted">Select a photo to see each person's role.</p>
+    <ul class="people" id="people"></ul>
+  </section>
+
+  <section class="faq" id="questions">
+    <h2>Questions worth asking</h2>
+    <div class="faq__list" id="faq">
+      <details><summary>What does SignBridge do?</summary><div><p>A deaf patient signs to the camera and the doctor reads it as text. The doctor speaks or types, and an avatar signs the reply with each word captioned.</p></div></details>
+      <details><summary>Which sign languages does it know?</summary><div><p>Indian Sign Language with 262 signs and American Sign Language with 250 signs. Patients choose their language in Settings.</p></div></details>
+      <details><summary>Does my video leave the device?</summary><div><p>No. Tracking and sign recognition run on the phone or laptop.</p></div></details>
+      <details><summary>Does it work without internet?</summary><div><p>Face-to-face mode needs no internet and no server. The app also installs on phones like a native app.</p></div></details>
+      <details><summary>What are its limits?</summary><div><p>It reads one sign at a time and knows a few hundred everyday words, few of them medical. The avatar signs word by word in English order, not full sign language grammar. The patient always checks a message before it is sent.</p></div></details>
+      <details><summary>Can it replace an interpreter?</summary><div><p>No. SignBridge is a communication aid. For consent, diagnosis and discharge, book a qualified interpreter.</p></div></details>
+    </div>
+  </section>
+
+  <section class="close">
+    <h2>Start your first conversation.</h2>
+    {% if current_user.is_authenticated %}
+      <a class="btn btn--solid" href="{{ url_for('views.dashboard') }}">Open SignBridge</a>
+    {% else %}
+      <a class="btn btn--solid" href="{{ url_for('auth.register') }}">Get started</a>
+    {% endif %}
+  </section>
+</main>
+
+<footer class="foot">
+  <span>© {{ now().year }} SignBridge</span>
+  <span>A communication aid. In an emergency, always alert hospital staff directly.</span>
+</footer>
+
+<nav class="dock" aria-label="Page sections">
+  <a href="#top" class="is-on">Home</a>
+  <a href="#how">How it works</a>
+  <a href="#features">Features</a>
+  <a href="#team" data-team-link hidden>Team</a>
+  <a href="#questions">Questions</a>
+</nav>
+
+<script src="{{ url_for('static', filename='landing/vendor/gsap.min.js') }}"></script>
+<script src="{{ url_for('static', filename='landing/vendor/ScrollTrigger.min.js') }}"></script>
+<script src="{{ url_for('static', filename='landing/team.js') }}"></script>
+<script src="{{ url_for('static', filename='landing/landing.js') }}"></script>
+</body>
+</html>

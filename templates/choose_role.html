@@ -1,0 +1,33 @@
+{% extends "_auth_layout.html" %}
+{% block title %}Finish setting up · SignBridge{% endblock %}
+{% block card %}
+<h1>One last step</h1>
+<p class="lede">Tell us how you'll use SignBridge so we can set up the right screens.</p>
+
+<div class="profile-pill">
+  {% if pending.picture %}<img src="{{ pending.picture }}" alt="" referrerpolicy="no-referrer">{% else %}<span class="user__avatar">{{ pending.name[:1]|upper }}</span>{% endif %}
+  <div><strong>{{ pending.name }}</strong><small>{{ pending.email }}</small></div>
+</div>
+
+<form method="post" class="form">
+  <fieldset class="roles">
+    <legend>I am a…</legend>
+    <label class="role"><input type="radio" name="role" value="patient" required>
+      <strong><svg class="icon"><use href="#i-hand"/></svg> Patient</strong>
+      <small>I sign, and want my doctor to understand me.</small>
+    </label>
+    <label class="role"><input type="radio" name="role" value="doctor">
+      <strong><svg class="icon"><use href="#i-stethoscope"/></svg> Clinician</strong>
+      <small>Doctor, nurse, or hospital staff.</small>
+    </label>
+  </fieldset>
+  {% if clinician_code_required %}
+  <label><span>Clinic code <small class="muted" style="font-weight:400">(clinicians only, from your clinic)</small></span><input type="text" name="clinic_code" autocomplete="off"></label>
+  {% endif %}
+  <label><span>Name shown to others</span><input type="text" name="display_name" value="{{ pending.name }}" maxlength="120" autocomplete="name"></label>
+  <label class="check"><input type="checkbox" name="agree" value="1" required>
+    <span style="font-weight:400;display:inline">I agree that SignBridge may use my camera to read signs on this device and store my conversation messages. I can change this any time in Settings.</span>
+  </label>
+  <button class="btn btn--primary btn--block btn--lg" type="submit">Continue</button>
+</form>
+{% endblock %}

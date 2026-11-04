@@ -1,0 +1,40 @@
+{% extends "public.html" %}
+{% block body %}
+<div class="auth">
+  <aside class="auth__panel">
+    <a class="brand" href="{{ url_for('views.welcome') }}">
+      <span class="brand__mark"><svg class="icon"><use href="#i-logo"/></svg></span>
+      <span class="brand__name">SignBridge</span>
+    </a>
+    <div class="auth__quote">
+      <h2>Clear conversations between deaf patients and their doctors.</h2>
+      <p>Signs become text for the doctor. The doctor's words come back as text and sign.</p>
+    </div>
+    <ul class="auth__points">
+      <li><svg class="icon"><use href="#i-lock"/></svg> Camera video never leaves your device</li>
+      <li><svg class="icon"><use href="#i-check"/></svg> You confirm every message before it is sent</li>
+      <li><svg class="icon"><use href="#i-alert"/></svg> Emergency phrases are always one tap away</li>
+    </ul>
+    <svg class="auth__art" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width=".6"><use href="#i-hand"/></svg>
+  </aside>
+
+  <main class="auth__main">
+    <div class="auth-card">
+      <a class="brand auth__mobile-brand" href="{{ url_for('views.welcome') }}" style="padding:0">
+        <span class="brand__mark"><svg class="icon"><use href="#i-logo"/></svg></span>
+        <span class="brand__name">SignBridge</span>
+      </a>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flashes">
+          {% for category, message in messages %}
+          <div class="flash flash--{{ category }}" role="status"><span>{{ message }}</span><button class="flash__x" type="button" aria-label="Dismiss">&times;</button></div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% endwith %}
+      {% block card %}{% endblock %}
+    </div>
+  </main>
+</div>
+{% endblock %}

@@ -1,0 +1,6 @@
+# Only needed to retrain models or rebuild the avatar clips (not to run the app).
+torch>=2.2
+numpy>=1.26
+pandas>=2.1
+pyarrow>=15
+# ASL download (Python 3.11+): kaggle>=2.2

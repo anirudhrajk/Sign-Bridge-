@@ -1,0 +1,15 @@
+{% extends "public.html" %}
+{% block title %}Offline · SignBridge{% endblock %}
+{% block body %}
+<main class="landing">
+  <div class="error-page" style="max-width:520px">
+    <span class="brand__mark" style="width:56px;height:56px;margin:0 auto 18px;border-radius:16px"><svg class="icon" style="width:32px;height:32px"><use href="#i-wifi-off"/></svg></span>
+    <h1 style="font-size:1.8rem">You're offline</h1>
+    <p class="muted">Conversations with your clinic need a connection. You can still talk face to face on this device: signing and the signing avatar both work without internet.</p>
+    <div class="hero__actions" style="justify-content:center;margin-top:18px">
+      <a class="btn btn--primary btn--lg" href="/together"><svg class="icon"><use href="#i-hand"/></svg> Open face-to-face mode</a>
+      <button class="btn btn--ghost btn--lg" type="button" onclick="location.reload()">Try again</button>
+    </div>
+  </div>
+</main>
+{% endblock %}

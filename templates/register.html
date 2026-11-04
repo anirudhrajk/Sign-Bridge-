@@ -1,0 +1,33 @@
+{% extends "_auth_layout.html" %}
+{% from "_macros.html" import google_button with context %}
+{% block title %}Create account · SignBridge{% endblock %}
+{% block card %}
+<h1>Create your account</h1>
+<p class="lede">Takes less than a minute.</p>
+
+{{ google_button('Sign up with Google', cls='btn--block') }}
+
+<div class="divider"><span>or use email</span></div>
+
+<form method="post" class="form">
+  <fieldset class="roles">
+    <legend>I am a…</legend>
+    <label class="role"><input type="radio" name="role" value="patient" checked>
+      <strong><svg class="icon"><use href="#i-hand"/></svg> Patient</strong>
+      <small>I sign, and want my doctor to understand me.</small>
+    </label>
+    <label class="role"><input type="radio" name="role" value="doctor">
+      <strong><svg class="icon"><use href="#i-stethoscope"/></svg> Clinician</strong>
+      <small>Doctor, nurse, or hospital staff.</small>
+    </label>
+  </fieldset>
+  {% if clinician_code_required %}
+  <label><span>Clinic code <small class="muted" style="font-weight:400">(clinicians only, from your clinic)</small></span><input type="text" name="clinic_code" autocomplete="off"></label>
+  {% endif %}
+  <label><span>Full name</span><input type="text" name="display_name" required autocomplete="name"></label>
+  <label><span>Email</span><input type="email" name="email" required autocomplete="email"></label>
+  <label><span>Password</span><input type="password" name="password" minlength="8" required autocomplete="new-password" placeholder="At least 8 characters"></label>
+  <button class="btn btn--primary btn--block btn--lg" type="submit">Create account</button>
+</form>
+<p class="auth-foot">Already registered? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
+{% endblock %}

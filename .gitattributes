@@ -1,0 +1,8 @@
+*.wasm binary
+*.data binary
+*.tflite binary
+*.binarypb binary
+*.bin binary
+*.pth binary
+*.parquet binary
+*.npz binary

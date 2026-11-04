@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments & Secrets
+.env
+venv/
+env/
+
+# Flask
+instance/
+app.db
+
+# Machine Learning & Datasets (Too large for standard Git)
+data/
+*.pth
+*.zip
+
+# Uploads
+static/uploads/
+
+# OS Files
+.DS_Store
+Thumbs.dbdata/models_v1_backup/

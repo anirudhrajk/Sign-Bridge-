@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}My Deaf patient card · SignBridge{% endblock %}
+{% block page_title %}My Deaf patient card{% endblock %}
+{% block page_sub %}Show this screen at reception or to any staff member.{% endblock %}
+{% block content %}
+<article class="deaf-card" aria-label="Deaf patient card">
+  <div class="deaf-card__head">
+    <svg class="icon" style="width:44px;height:44px"><use href="#i-hand"/></svg>
+    <div>
+      <h2>I am Deaf.</h2>
+      <p>I use <strong>{{ languages.get(lang, 'sign language') }}</strong>. My name is <strong>{{ current_user.display_name }}</strong>.</p>
+    </div>
+  </div>
+  <ol class="deaf-card__tips">
+    <li><strong>Please don't call my name.</strong> I can't hear it. Tap my shoulder, wave, or call me with SignBridge.</li>
+    <li><strong>Face me when you talk</strong>, in good light. Don't cover your mouth.</li>
+    <li><strong>Use SignBridge or write it down.</strong> Short, simple sentences are best.</li>
+    <li><strong>Please book a sign language interpreter</strong> for important talks: diagnosis, surgery, consent, and going home.</li>
+    <li><strong>Check that I understood.</strong> Ask me to show or tell you back. Nodding does not always mean yes.</li>
+    <li><strong>In an emergency</strong>, show me, point, and use the emergency screen.</li>
+  </ol>
+  <p class="deaf-card__foot">SignBridge · Deaf-friendly care</p>
+</article>
+<div class="translator__controls mt" style="justify-content:center">
+  <button class="btn btn--primary" type="button" id="needInterpreter"><svg class="icon"><use href="#i-users"/></svg> Ask staff for an interpreter</button>
+  <button class="btn btn--ghost" type="button" onclick="window.print()">Print card</button>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('needInterpreter').addEventListener('click', async e => {
+  e.currentTarget.disabled = true;
+  if (await SignBridge.sendMessage('I am Deaf. Please book a sign language interpreter for me.', 'request')) SignBridge.toast('Staff have been asked for an interpreter.');
+  else e.currentTarget.disabled = false;
+});
+</script>
+{% endblock %}

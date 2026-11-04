@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Patients · SignBridge{% endblock %}
+{% block page_title %}Patients{% endblock %}
+{% block page_sub %}Patients with an open conversation. Open one to read their messages and reply.{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn--primary" href="{{ url_for('views.voice_translator') }}"><svg class="icon"><use href="#i-mic"/></svg> <span>Speak to patient</span></a>
+{% endblock %}
+{% block content %}
+<section class="stat-grid">
+  <div class="stat"><svg class="icon"><use href="#i-users"/></svg><div><small>Open conversations</small><span class="stat__value">{{ sessions|length }}</span></div></div>
+  <div class="stat"><svg class="icon"><use href="#i-message"/></svg><div><small>Messages in open conversations</small><span class="stat__value">{{ counts.values()|sum }}</span></div></div>
+  <div class="stat"><svg class="icon" style="color:var(--danger)"><use href="#i-alert"/></svg><div><small>Need attention now</small><span class="stat__value">{{ urgent|length }}</span></div></div>
+</section>
+
+<section class="card">
+  <header class="card__head"><h2>Waiting for you</h2></header>
+  {% if sessions %}
+  <ul class="list-rows">
+    {% for s in sessions %}
+    <li>
+      {% if s.patient.avatar_url %}<img class="user__avatar" src="{{ s.patient.avatar_url }}" alt="" referrerpolicy="no-referrer">{% else %}<span class="user__avatar">{{ s.patient.initials }}</span>{% endif %}
+      <div class="grow">
+        <p>{{ s.patient.display_name }}{% if urgent[s.id] %} <span class="chip" style="color:var(--danger);background:var(--danger-soft);border-color:transparent;margin-left:6px">{{ urgent[s.id] }}</span>{% endif %}</p>
+        <small>{{ counts[s.id] }} message{{ '' if counts[s.id] == 1 else 's' }} · started {{ s.created_at.strftime('%d %b, %H:%M') }}</small>
+      </div>
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('views.session_detail', session_id=s.id) }}">Open <svg class="icon" style="width:14px;height:14px"><use href="#i-arrow"/></svg></a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">No open conversations. One starts when a patient signs in.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Phrase library · SignBridge{% endblock %}
+{% block page_title %}Phrase library{% endblock %}
+{% block page_sub %}Saved phrases staff can send in one tap, with an optional ISL video.{% endblock %}
+{% block content %}
+<div class="two-col">
+  <div class="card">
+    <header class="card__head"><h2>Saved phrases</h2><span class="chip">{{ phrases|length }}</span></header>
+    <ul class="list-rows">
+      {% for p in phrases %}
+      <li>
+        <div class="grow">
+          <p>{{ p.text }}</p>
+          <small>{{ p.category|capitalize }}{% if p.video_url %} · has video{% endif %}</small>
+        </div>
+        {% if p.is_emergency %}<span class="chip" style="color:var(--danger);border-color:transparent;background:var(--danger-soft)">Emergency</span>{% endif %}
+        <form method="POST" action="{{ url_for('views.delete_phrase', phrase_id=p.id) }}" onsubmit="return confirm('Remove this phrase?');">
+          <button class="btn btn--quiet btn--icon" type="submit" aria-label="Remove {{ p.text }}"><svg class="icon"><use href="#i-trash"/></svg></button>
+        </form>
+      </li>
+      {% else %}
+      <li class="empty">No phrases yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Add a phrase</h2>
+    <form method="POST" class="form">
+      <label><span>Phrase</span><input type="text" name="text" required maxlength="255" placeholder="e.g. Please lie down on the bed"></label>
+      <label><span>Category</span>
+        <select name="category">
+          <option value="general">General</option>
+          <option value="procedure">Procedure</option>
+          <option value="intake">Intake</option>
+          <option value="medication">Medication</option>
+        </select>
+      </label>
+      <label><span>ISL video link (optional)</span><input type="url" name="video_url" placeholder="https://"></label>
+      <label class="check"><input type="checkbox" name="is_emergency"> <span style="display:inline;font-weight:400">Show on the patient's emergency screen</span></label>
+      <button class="btn btn--primary btn--block" type="submit">Add phrase</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

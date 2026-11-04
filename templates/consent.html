@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Consent · SignBridge{% endblock %}
+{% block page_title %}Consent{% endblock %}
+{% block page_sub %}Choose how SignBridge may use your camera and messages. Change it any time.{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:760px">
+  <h2>Your choices</h2>
+  <p class="muted">The sign translator needs camera consent. Video is processed on your device and is never uploaded.</p>
+  <ul class="consent-list">
+    {% for c in consents %}
+    <li class="consent-item">
+      <div>
+        <strong>{{ c.purpose.replace('_', ' ')|capitalize }}</strong>
+        <small class="muted">{{ c.description }}</small>
+        <small>{% if c.granted %}<span class="chip chip--soft" style="margin-top:6px"><svg class="icon" style="width:13px;height:13px"><use href="#i-check"/></svg> Allowed{% if c.granted_at %} since {{ c.granted_at.strftime('%d %b %Y') }}{% endif %}</span>{% else %}<span class="chip" style="margin-top:6px">Not allowed</span>{% endif %}</small>
+      </div>
+      <button class="btn btn--sm {{ 'btn--ghost' if c.granted else 'btn--primary' }} toggle-consent" data-purpose="{{ c.purpose }}" data-granted="{{ 'true' if c.granted else 'false' }}">
+        {{ 'Withdraw' if c.granted else 'Allow' }}
+      </button>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.toggle-consent').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const purpose = btn.dataset.purpose;
+    const currentlyGranted = btn.dataset.granted === 'true';
+    btn.disabled = true;
+    const res = await fetch(`/api/consent/${purpose}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ granted: !currentlyGranted })
+    });
+    if (res.ok) location.reload(); else { btn.disabled = false; SignBridge.toast('Could not update consent.'); }
+  });
+});
+</script>
+{% endblock %}

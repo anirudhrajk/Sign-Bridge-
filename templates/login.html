@@ -1,0 +1,38 @@
+{% extends "_auth_layout.html" %}
+{% from "_macros.html" import google_button with context %}
+{% block title %}Sign in · SignBridge{% endblock %}
+{% block card %}
+<h1>Welcome back</h1>
+<p class="lede">Sign in to continue to SignBridge.</p>
+
+{{ google_button(cls='btn--block') }}
+
+<div class="divider"><span>or use email</span></div>
+
+<form method="post" class="form" id="loginForm">
+  <label><span>Email</span><input type="email" name="email" id="loginEmail" required autocomplete="email" placeholder="you@hospital.org"></label>
+  <label><span>Password</span><input type="password" name="password" id="loginPassword" required autocomplete="current-password"></label>
+  <label class="check"><input type="checkbox" name="remember"> Keep me signed in on this device</label>
+  <button class="btn btn--primary btn--block btn--lg" type="submit">Sign in</button>
+</form>
+
+<p class="auth-foot">New to SignBridge? <a href="{{ url_for('auth.register') }}">Create an account</a></p>
+
+{% if demo_enabled %}
+<div class="divider"><span>Try a demo account</span></div>
+<div class="demo-grid">
+  <button type="button" class="demo" data-demo-email="patient@signbridge.app" data-demo-password="patient123"><strong>Patient</strong><code>patient@signbridge.app</code></button>
+  <button type="button" class="demo" data-demo-email="doctor@signbridge.app" data-demo-password="doctor123"><strong>Doctor</strong><code>doctor@signbridge.app</code></button>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-demo-email]').forEach(b => b.addEventListener('click', () => {
+  document.getElementById('loginEmail').value = b.dataset.demoEmail;
+  document.getElementById('loginPassword').value = b.dataset.demoPassword;
+  document.getElementById('loginForm').requestSubmit();
+}));
+</script>
+{% endblock %}

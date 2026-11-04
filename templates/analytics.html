@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Analytics · SignBridge{% endblock %}
+{% block page_title %}Analytics{% endblock %}
+{% block page_sub %}How SignBridge is being used across the clinic.{% endblock %}
+{% block content %}
+<div class="stat-grid">
+  <div class="stat"><svg class="icon"><use href="#i-users"/></svg><div><small>Conversations</small><span class="stat__value">{{ total_sessions }}</span></div></div>
+  <div class="stat"><svg class="icon"><use href="#i-message"/></svg><div><small>Messages</small><span class="stat__value">{{ total_messages }}</span></div></div>
+</div>
+<div class="card note">
+  <p style="margin:0">Recognition confidence and response times will appear here as the app is used.</p>
+</div>
+{% endblock %}

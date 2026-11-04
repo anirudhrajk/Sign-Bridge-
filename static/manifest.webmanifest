@@ -1,0 +1,66 @@
+{
+  "name": "SignBridge",
+  "short_name": "SignBridge",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f6f7f5",
+  "theme_color": "#0e6b5e",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "description": "Sign language communication between deaf patients and doctors. Works offline face to face.",
+  "id": "/dashboard",
+  "scope": "/",
+  "orientation": "any",
+  "lang": "en",
+  "categories": [
+    "medical",
+    "health",
+    "accessibility"
+  ],
+  "shortcuts": [
+    {
+      "name": "Face-to-face (offline)",
+      "url": "/together",
+      "icons": [
+        {
+          "src": "/static/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Emergency",
+      "url": "/patient/emergency",
+      "icons": [
+        {
+          "src": "/static/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

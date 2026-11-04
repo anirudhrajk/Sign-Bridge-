@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}SignBridge{% endblock %}</title>
+  <meta name="theme-color" content="#0e6b5e" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0c1311" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <script>
+    try {
+      ['contrast', 'motion', 'large'].forEach(k => {
+        if (localStorage.getItem('sb-' + k) === '1') document.documentElement.classList.add('a11y-' + k);
+      });
+      const t = localStorage.getItem('sb-theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  </script>
+</head>
+<body data-role="{{ current_user.role if current_user.is_authenticated else '' }}">
+{% include "_icons.html" %}
+
+{% from "_macros.html" import avatar %}
+
+<div class="shell {% if not current_user.is_authenticated %}shell--bare{% endif %}">
+
+  {% if current_user.is_authenticated %}
+  <aside class="sidebar" aria-label="Main navigation">
+    <a class="brand" href="{{ url_for('views.dashboard') }}">
+      <span class="brand__mark"><svg class="icon"><use href="#i-logo"/></svg></span>
+      <span class="brand__name">SignBridge</span>
+    </a>
+
+    <nav class="nav">
+      {% set ep = request.endpoint %}
+      {% if current_user.role == 'patient' %}
+        <p class="nav__label">Care</p>
+        <a class="nav__item {{ 'is-active' if ep == 'views.patient_home' }}" href="{{ url_for('views.patient_home') }}">
+          <svg class="icon"><use href="#i-home"/></svg> Home
+        </a>
+        <a class="nav__item {{ 'is-active' if ep == 'views.sign_translator' }}" href="{{ url_for('views.sign_translator') }}">
+          <svg class="icon"><use href="#i-hand"/></svg> Sign to doctor
+        </a>
+        <a class="nav__item {{ 'is-active' if ep == 'views.pain_report' }}" href="{{ url_for('views.pain_report') }}">
+          <svg class="icon"><use href="#i-person"/></svg> Where it hurts
+        </a>
+        <a class="nav__item nav__item--danger {{ 'is-active' if ep == 'views.emergency' }}" href="{{ url_for('views.emergency') }}">
+          <svg class="icon"><use href="#i-alert"/></svg> Emergency
+        </a>
+      {% else %}
+        <p class="nav__label">Clinic</p>
+        <a class="nav__item {{ 'is-active' if ep in ('views.doctor_home', 'views.session_detail') }}" href="{{ url_for('views.doctor_home') }}">
+          <svg class="icon"><use href="#i-message"/></svg> Patients
+        </a>
+        <a class="nav__item {{ 'is-active' if ep == 'views.voice_translator' }}" href="{{ url_for('views.voice_translator') }}">
+          <svg class="icon"><use href="#i-mic"/></svg> Speak to patient
+        </a>
+        <a class="nav__item nav__item--secondary {{ 'is-active' if ep == 'views.phrase_library' }}" href="{{ url_for('views.phrase_library') }}">
+          <svg class="icon"><use href="#i-list"/></svg> Phrase library
+        </a>
+        <a class="nav__item nav__item--secondary {{ 'is-active' if ep == 'views.analytics' }}" href="{{ url_for('views.analytics') }}">
+          <svg class="icon"><use href="#i-chart"/></svg> Analytics
+        </a>
+        {% if current_user.role == 'admin' %}
+        <a class="nav__item nav__item--secondary {{ 'is-active' if ep == 'views.admin_home' }}" href="{{ url_for('views.admin_home') }}">
+          <svg class="icon"><use href="#i-shield"/></svg> Admin
+        </a>
+        {% endif %}
+      {% endif %}
+      <p class="nav__label">Reference</p>
+      <a class="nav__item nav__item--secondary {{ 'is-active' if ep == 'views.together' }}" href="{{ url_for('views.together') }}">
+        <svg class="icon"><use href="#i-users"/></svg> Face-to-face
+      </a>
+      <a class="nav__item {{ 'is-active' if ep == 'views.dictionary' }}" href="{{ url_for('views.dictionary') }}">
+        <svg class="icon"><use href="#i-book"/></svg> Dictionary
+      </a>
+      <a class="nav__item {{ 'is-active' if ep in ('views.settings', 'views.consent') }}" href="{{ url_for('views.settings') }}">
+        <svg class="icon"><use href="#i-sliders"/></svg> Settings
+      </a>
+    </nav>
+
+    <div class="sidebar__foot">
+      <div class="user">
+        {{ avatar(current_user) }}
+        <span class="user__meta">
+          <strong>{{ current_user.display_name }}</strong>
+          <small>{{ current_user.role }}</small>
+        </span>
+      </div>
+      <a class="btn btn--quiet btn--icon" href="{{ url_for('auth.logout') }}" title="Sign out" aria-label="Sign out">
+        <svg class="icon"><use href="#i-logout"/></svg>
+      </a>
+    </div>
+  </aside>
+  {% endif %}
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar__lead">
+        {% if current_user.is_authenticated %}
+          <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+          <p class="page-sub">{% block page_sub %}{% endblock %}</p>
+        {% else %}
+          <a class="brand" style="margin:0;padding:0" href="{{ url_for('views.welcome') }}">
+            <span class="brand__mark"><svg class="icon"><use href="#i-logo"/></svg></span>
+            <span class="brand__name">SignBridge</span>
+          </a>
+        {% endif %}
+      </div>
+      <div class="topbar__tools">
+        <span class="chip" id="netStatus" hidden><svg class="icon" style="width:14px;height:14px"><use href="#i-wifi-off"/></svg><span data-net-text>Offline</span></span>
+        {% block topbar_actions %}{% endblock %}
+        {% if current_user.is_authenticated %}
+          <a class="btn btn--quiet btn--icon topbar__mobile" href="{{ url_for('auth.logout') }}" aria-label="Sign out">
+            <svg class="icon"><use href="#i-logout"/></svg>
+          </a>
+        {% else %}
+          <a class="btn btn--primary" href="{{ url_for('auth.login') }}">Sign in</a>
+        {% endif %}
+      </div>
+    </header>
+
+    <main class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flashes">
+          {% for category, message in messages %}
+          <div class="flash flash--{{ category }}" role="status">
+            <span>{{ message }}</span>
+            <button class="flash__x" type="button" aria-label="Dismiss">&times;</button>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+<script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
