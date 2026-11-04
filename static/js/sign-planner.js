@@ -2,26 +2,24 @@
 // Only true synonyms are mapped. A medical word is never swapped for a different meaning
 // (for example "fever" is not turned into "hot"); words without a sign are shown as text.
 (() => {
-  const SYNONYMS = {
-    hi: 'hello', hey: 'hello', namaste: 'hello', thanks: 'thankyou',
-    ill: 'sick', unwell: 'sick', sickness: 'sick', illness: 'sick',
-    tablet: 'medicine', tablets: 'medicine', pill: 'medicine', pills: 'medicine', medication: 'medicine',
-    medications: 'medicine', medicines: 'medicine', capsule: 'medicine', capsules: 'medicine', drug: 'medicine', drugs: 'medicine',
-    physician: 'doctor', doc: 'doctor', dr: 'doctor', doctors: 'doctor',
-    toilet: 'bathroom', washroom: 'bathroom', restroom: 'bathroom', loo: 'bathroom',
-    mom: 'mother', mum: 'mother', mummy: 'mother', mommy: 'mother', amma: 'mother',
-    dad: 'father', daddy: 'father', papa: 'father', appa: 'father',
-    kid: 'child', kids: 'child', children: 'child', baby: 'baby',
-    ok: 'alright', okay: 'alright', fine: 'alright',
-    large: 'biglarge', big: 'biglarge', huge: 'biglarge', small: 'smalllittle', little: 'smalllittle', tiny: 'smalllittle',
-    mobile: 'cellphone', phone: 'cellphone', cellphone: 'cellphone',
-    home: 'house', glad: 'happy', upset: 'sad', unhappy: 'sad',
-    quick: 'fast', quickly: 'fast', slowly: 'slow', loudly: 'loud', quietly: 'quiet',
-    shop: 'storeorshop', store: 'storeorshop', road: 'streetorroad', street: 'streetorroad',
-    tv: 'television', cost: 'price', cash: 'money',
-    me: 'i', my: 'i', mine: 'i', myself: 'i', your: 'you', yours: 'you', yourself: 'you',
-    his: 'he', him: 'he', her: 'she', hers: 'she', our: 'we', us: 'we', their: 'they', them: 'they',
-  };
+  // Groups of true synonyms. Each sign language names its signs differently (ISL "mother",
+  // ASL "mom"), so any word in a group finds whichever sign the chosen language has.
+  const GROUPS = [
+    ['hello', 'hi', 'hey', 'namaste'], ['thankyou', 'thanks'], ['sick', 'ill', 'unwell', 'sickness', 'illness'],
+    ['medicine', 'tablet', 'pill', 'medication', 'drug', 'capsule'], ['doctor', 'physician', 'doc', 'dr'],
+    ['bathroom', 'toilet', 'washroom', 'restroom', 'loo'], ['mother', 'mom', 'mum', 'mummy', 'mommy', 'amma'],
+    ['father', 'dad', 'daddy', 'papa', 'appa'], ['grandmother', 'grandma', 'granny'], ['grandfather', 'grandpa'],
+    ['child', 'kid'], ['alright', 'ok', 'okay', 'fine'], ['biglarge', 'big', 'large', 'huge'],
+    ['smalllittle', 'small', 'little', 'tiny'], ['cellphone', 'phone', 'mobile'], ['house', 'home'],
+    ['happy', 'glad'], ['sad', 'upset', 'unhappy'], ['fast', 'quick', 'quickly'], ['slow', 'slowly'],
+    ['loud', 'loudly'], ['quiet', 'quietly'], ['storeorshop', 'shop', 'store'], ['streetorroad', 'road', 'street'],
+    ['television', 'tv'], ['price', 'cost'], ['money', 'cash'], ['bed', 'bedroom'],
+  ];
+  const GROUP_OF = new Map();
+  GROUPS.forEach(g => g.forEach(w => GROUP_OF.set(w, g)));
+  // One-way: possessives and object pronouns sign as the plain pronoun.
+  const PRONOUN = { me: 'i', my: 'i', mine: 'i', myself: 'i', your: 'you', yours: 'you', yourself: 'you',
+    his: 'he', him: 'he', her: 'she', hers: 'she', our: 'we', us: 'we', their: 'they', them: 'they' };
   const PHRASES = {
     'good morning': 'goodmorning', 'good afternoon': 'goodafternoon', 'good evening': 'goodevening',
     'good night': 'goodnight', 'thank you': 'thankyou', 'how are you': 'howareyou',
@@ -33,23 +31,33 @@
     'should can could do does did please just so very really that this these those there here it\'s its ' +
     'with at in on by from as into about than then also any some').split(' '));
 
-  const IRREGULAR = { men: 'man', women: 'woman', wives: 'wife', children: 'child' };
+  const IRREGULAR = { men: 'man', women: 'woman', wives: 'wife', children: 'child', kids: 'child' };
 
   class SignPlanner {
     constructor(clips) {
-      this.names = new Set(clips.map(c => c.name));
+      this.byLower = new Map(clips.map(c => [c.name.toLowerCase(), c.name]));
       this.label = new Map(clips.map(c => [c.name, c.label]));
     }
 
+    find(w) { return this.byLower.get(w) || null; }
+
+    lookup(w) {
+      if (PRONOUN[w]) w = PRONOUN[w];
+      if (IRREGULAR[w]) w = IRREGULAR[w];
+      for (const cand of [w, ...(GROUP_OF.get(w) || [])]) {
+        const hit = this.find(cand);
+        if (hit) return hit;
+      }
+      return null;
+    }
+
     base(w) {
-      if (this.names.has(w)) return w;
-      if (SYNONYMS[w] && this.names.has(SYNONYMS[w])) return SYNONYMS[w];
-      if (IRREGULAR[w] && this.names.has(IRREGULAR[w])) return IRREGULAR[w];
+      const direct = this.lookup(w);
+      if (direct) return direct;
       for (const [suf, rep] of [['ies', 'y'], ['es', ''], ['s', ''], ['ing', ''], ['ing', 'e'], ['ed', ''], ['ed', 'e'], ['ly', '']]) {
         if (w.endsWith(suf) && w.length > suf.length + 2) {
-          const b = w.slice(0, -suf.length) + rep;
-          if (this.names.has(b)) return b;
-          if (SYNONYMS[b] && this.names.has(SYNONYMS[b])) return SYNONYMS[b];
+          const hit = this.lookup(w.slice(0, -suf.length) + rep);
+          if (hit) return hit;
         }
       }
       return null;
@@ -64,7 +72,7 @@
         let hit = null;
         for (const n of [3, 2]) {
           const ph = words.slice(i, i + n).join(' ');
-          if (words.length - i >= n && PHRASES[ph] && this.names.has(PHRASES[ph])) { hit = { n, sign: PHRASES[ph] }; break; }
+          if (words.length - i >= n && PHRASES[ph] && this.find(PHRASES[ph])) { hit = { n, sign: this.find(PHRASES[ph]) }; break; }
         }
         if (hit) { out.push({ word: words.slice(i, i + hit.n).join(' '), sign: hit.sign }); i += hit.n - 1; continue; }
         const w = words[i].replace(/'s$/, '').replace(/'/g, '');
