@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Voice translator — SignBridge{% endblock %}
+{% block page_title %}Voice translator{% endblock %}
+{% block page_sub %}Speak or type a short message. The app finds an approved ISL phrase and plays the matching video.{% endblock %}
+{% block content %}
+
+<section class="translator">
+  <div class="card">
+    <h2>Doctor input</h2>
+    <div class="translator__controls">
+      <button class="btn btn--primary" id="startSpeechBtn"><svg class="icon"><use href="#i-mic"/></svg> Start speaking</button>
+      <button class="btn btn--ghost" id="stopSpeechBtn" disabled>Stop</button>
+    </div>
+    <label class="field"><span>Transcript</span>
+      <textarea id="transcript" rows="4" placeholder="Speak or type a message"></textarea>
+    </label>
+    <button class="btn btn--primary btn--block" id="translateBtn">Translate to ISL video</button>
+  </div>
+
+  <div class="card">
+    <h2>ISL display</h2>
+    <div class="video-placeholder" id="videoPlaceholder">
+      <p class="empty">Approved ISL video will appear here.</p>
+    </div>
+    <video id="islVideo" controls hidden></video>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/speech.js') }}" defer></script>
+{% endblock %}

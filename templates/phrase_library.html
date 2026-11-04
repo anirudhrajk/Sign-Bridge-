@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Phrase Library — SignBridge{% endblock %}
+{% block page_title %}Phrase Library{% endblock %}
+{% block page_sub %}Manage the approved ISL phrases available for staff communication.{% endblock %}
+{% block content %}
+<div class="two-col">
+  <div class="card">
+    <h2>Add New Phrase</h2>
+    <form method="POST" class="form mt">
+      <label><span>Phrase Text</span><input type="text" name="text" required></label>
+      <label><span>Category</span>
+        <select name="category">
+          <option value="general">General</option>
+          <option value="procedure">Procedure</option>
+          <option value="intake">Intake</option>
+          <option value="medication">Medication</option>
+        </select>
+      </label>
+      <label><span>ISL Video URL (Optional)</span><input type="url" name="video_url"></label>
+      <label class="check"><input type="checkbox" name="is_emergency"> Mark as Emergency Phrase</label>
+      <button class="btn btn--primary mt" type="submit">Add Phrase</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Existing Phrases</h2>
+    <ul class="message-list mt">
+      {% for p in phrases %}
+      <li class="message" style="align-items: center; justify-content: space-between;">
+        <div class="message__body">
+          <p>{{ p.text }}</p>
+          <small>{{ p.category|title }} {% if p.is_emergency %}· Emergency{% endif %}</small>
+        </div>
+        <form method="POST" action="{{ url_for('views.delete_phrase', phrase_id=p.id) }}">
+          <button class="btn btn--ghost btn--sm" type="submit" style="color: var(--danger);"><svg class="icon"><use href="#i-trash"/></svg></button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Emergency — SignBridge{% endblock %}
+{% block page_title %}Emergency communication{% endblock %}
+{% block page_sub %}Large, high-contrast phrases for urgent needs. Available offline.{% endblock %}
+{% block content %}
+
+<div class="emergency-grid">
+  {% for p in phrases %}
+  <button class="emergency-btn" type="button" data-emergency="{{ p.text }}">
+    <svg class="icon icon--xl"><use href="#i-alert"/></svg>
+    <span>{{ p.text }}</span>
+  </button>
+  {% endfor %}
+</div>
+
+<div class="card mt">
+  <p class="muted">For critical emergencies, always alert hospital staff directly. This screen is a communication aid, not a substitute for emergency services.</p>
+</div>
+{% endblock %}

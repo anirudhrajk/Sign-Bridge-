@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Sign in — SignBridge{% endblock %}
+{% block content %}
+<div class="auth-card card">
+  <h2>Sign in</h2>
+  <p class="muted">Choose the experience that fits your role.</p>
+  <form method="post" class="form">
+    <label><span>Email</span><input type="email" name="email" required autocomplete="email" placeholder="you@hospital.org"></label>
+    <label><span>Password</span><input type="password" name="password" required autocomplete="current-password"></label>
+    <label class="check"><input type="checkbox" name="remember"> Keep me signed in on this device</label>
+    <button class="btn btn--primary btn--block" type="submit">Continue</button>
+  </form>
+  <p class="muted small">New here? <a href="{{ url_for('auth.register') }}">Create an account</a></p>
+  <div class="divider"><span>Demo accounts</span></div>
+  <div class="demo-grid">
+    <div class="demo"><strong>Patient</strong><code>patient@signbridge.app</code><code>patient123</code></div>
+    <div class="demo"><strong>Doctor</strong><code>doctor@signbridge.app</code><code>doctor123</code></div>
+  </div>
+</div>
+{% endblock %}

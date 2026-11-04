@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Sign translator — SignBridge{% endblock %}
+{% block page_title %}Sign translator{% endblock %}
+{% block page_sub %}Perform a supported ISL sign in front of the camera. Review and confirm the text before sending.{% endblock %}
+{% block content %}
+
+<section class="translator">
+  <div class="card translator__camera">
+    <div class="camera-frame">
+      <video id="cameraFeed" autoplay playsinline muted></video>
+      <canvas id="landmarkCanvas"></canvas>
+      <div class="camera-status" id="cameraStatus">Camera off</div>
+    </div>
+    <div class="translator__controls">
+      <button class="btn btn--primary" id="startCameraBtn">Start camera</button>
+      <button class="btn btn--ghost" id="stopCameraBtn" disabled>Stop</button>
+      <button class="btn btn--ghost" id="recognizeBtn" disabled>Recognize sign</button>
+    </div>
+    <p class="muted small">Supported signs: {{ supported|join(', ') }}.</p>
+  </div>
+
+  <div class="card translator__result">
+    <h2>Recognized message</h2>
+    <div class="result-box" id="resultBox">
+      <p class="empty">No sign recognized yet.</p>
+    </div>
+    <div class="confidence" id="confidenceBar" hidden>
+      <span>Confidence</span>
+      <div class="confidence__track"><div class="confidence__fill" id="confidenceFill"></div></div>
+      <span id="confidenceValue"></span>
+    </div>
+    <label class="field"><span>Edit message</span>
+      <textarea id="messageEdit" rows="3" placeholder="Correct the message if needed"></textarea>
+    </label>
+    <button class="btn btn--primary btn--block" id="confirmSendBtn" disabled>Confirm and send to doctor</button>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<!-- MediaPipe CDN Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+<!-- Your Camera Logic -->
+<script src="{{ url_for('static', filename='js/camera.js') }}" defer></script>
+{% endblock %}

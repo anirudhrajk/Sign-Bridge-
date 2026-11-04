@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Consent — SignBridge{% endblock %}
+{% block page_title %}Consent management{% endblock %}
+{% block page_sub %}Control how SignBridge uses camera, audio, and stored messages under the DPDP Act.{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h2>Your consent preferences</h2>
+  <p class="muted">Granting consent is required for camera capture, speech processing, and message storage. You may revoke consent at any time.</p>
+  <ul class="consent-list">
+    {% for c in consents %}
+    <li class="consent-item">
+      <div>
+        <strong>{{ c.purpose.replace('_', ' ')|title }}</strong>
+        <small class="muted">{{ 'Granted' if c.granted else 'Revoked' }}{% if c.granted_at %} · {{ c.granted_at.strftime('%d %b %Y') }}{% endif %}</small>
+      </div>
+      <button class="btn btn--ghost btn--sm toggle-consent" data-purpose="{{ c.purpose }}" data-granted="{{ 'true' if c.granted else 'false' }}">
+        {{ 'Revoke' if c.granted else 'Grant' }}
+      </button>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.toggle-consent').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const purpose = btn.dataset.purpose;
+    const currentlyGranted = btn.dataset.granted === 'true';
+    const res = await fetch(`/api/consent/${purpose}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ granted: !currentlyGranted })
+    });
+    if (res.ok) location.reload();
+  });
+});
+</script>
+{% endblock %}

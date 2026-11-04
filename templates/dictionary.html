@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Medical dictionary — SignBridge{% endblock %}
+{% block page_title %}Medical dictionary{% endblock %}
+{% block page_sub %}Approved ISL signs grouped by medical category. Based on ISLRTC categories.{% endblock %}
+{% block content %}
+
+<div class="filter-bar">
+  <label class="field field--inline"><span>Search</span><input type="search" id="dictSearch" placeholder="Search signs or descriptions"></label>
+  <label class="field field--inline"><span>Category</span>
+    <select id="categoryFilter">
+      <option value="">All categories</option>
+      {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+    </select>
+  </label>
+</div>
+
+<div class="dictionary-grid" id="dictionaryGrid">
+  {% for s in signs %}
+  <article class="card dict-card" data-category="{{ s.category }}" data-text="{{ s.label }} {{ s.description or '' }}">
+    <div class="dict-card__icon"><svg class="icon icon--lg"><use href="#i-hand"/></svg></div>
+    <h3>{{ s.label }}</h3>
+    <span class="chip chip--soft">{{ s.category }}</span>
+    <p class="muted small">{{ s.description or 'No description.' }}</p>
+    {% if s.video_url %}
+    <a class="btn btn--ghost btn--sm" href="{{ s.video_url }}" target="_blank">Watch ISL video</a>
+    {% else %}
+    <span class="muted small">Video pending approval</span>
+    {% endif %}
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const search = document.getElementById('dictSearch');
+  const filter = document.getElementById('categoryFilter');
+  const cards = Array.from(document.querySelectorAll('.dict-card'));
+  function apply() {
+    const q = (search.value || '').toLowerCase();
+    const c = filter.value;
+    cards.forEach(card => {
+      const matchText = (card.dataset.text || '').toLowerCase().includes(q);
+      const matchCat = !c || card.dataset.category === c;
+      card.style.display = (matchText && matchCat) ? '' : 'none';
+    });
+  }
+  search.addEventListener('input', apply);
+  filter.addEventListener('change', apply);
+});
+</script>
+{% endblock %}

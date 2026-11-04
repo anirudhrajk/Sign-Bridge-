@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Server Error — SignBridge{% endblock %}
+{% block content %}
+<div class="card auth-card" style="text-align: center;">
+  <h1 style="font-size: 4rem; margin-bottom: 0; color: var(--danger);">500</h1>
+  <h2>Something went wrong</h2>
+  <p class="muted">An internal server error occurred. Please try again later.</p>
+  <a href="{{ url_for('views.dashboard') }}" class="btn btn--primary mt">Return to Dashboard</a>
+</div>
+{% endblock %}

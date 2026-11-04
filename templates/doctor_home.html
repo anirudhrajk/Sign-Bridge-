@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Sessions — SignBridge{% endblock %}
+{% block page_title %}Active sessions{% endblock %}
+{% block page_sub %}Patients who are waiting for a response. Open a session to view confirmed messages.{% endblock %}
+{% block content %}
+<section class="card">
+  <header class="card__head">
+    <h2>Open sessions</h2>
+    <a class="btn btn--primary" href="{{ url_for('views.voice_translator') }}">
+      <svg class="

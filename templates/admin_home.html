@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel — SignBridge{% endblock %}
+{% block page_title %}System Administration{% endblock %}
+{% block page_sub %}Manage users, audit logs, and platform health.{% endblock %}
+{% block content %}
+<div class="two-col">
+  <div class="card">
+    <h2>Registered Users</h2>
+    <ul class="message-list mt">
+      {% for u in users %}
+      <li class="message" style="align-items: center;">
+        <span class="user__avatar" style="width: 30px; height: 30px; font-size: 0.7rem;">{{ u.initials }}</span>
+        <div class="message__body">
+          <p>{{ u.display_name }}</p>
+          <small>{{ u.email }} · {{ u.role|title }}</small>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Recent Audit Logs (DPDP)</h2>
+    <ul class="message-list mt">
+      {% for log in logs %}
+      <li class="message">
+        <div class="message__body">
+          <p>{{ log.action|replace('_', ' ')|title }}</p>
+          <small>{{ log.detail }} · {{ log.created_at.strftime('%d %b %H:%M') }}</small>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}
