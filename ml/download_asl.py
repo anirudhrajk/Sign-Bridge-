@@ -152,6 +152,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--limit", type=int, default=0, help="only this many recordings (for testing)")
+    ap.add_argument("--clips", action="store_true",
+                    help="fetch the full recordings listed in data/asl/clip_choices.json (for the avatar)")
     args = ap.parse_args()
 
     SHARDS.mkdir(parents=True, exist_ok=True)
@@ -160,6 +162,25 @@ def main():
     print(f"archive size {arc.size / 1e9:.1f} GB", flush=True)
     entries = arc.entries()
     by_name = {e[0]: e for e in entries}
+
+    if args.clips:
+        import json
+        wanted = set(json.loads((OUT / "clip_choices.json").read_text()))
+        raw_dir = OUT / "raw_clips"
+        raw_dir.mkdir(exist_ok=True)
+        picks = [e for e in entries if e[0].endswith(".parquet") and int(Path(e[0]).stem) in wanted]
+        for n, (name, off, cs, m) in enumerate(picks, 1):
+            dest = raw_dir / f"{Path(name).stem}.parquet"
+            if dest.exists():
+                continue
+            head = arc.read(off, 30)
+            nlen, xlen = struct.unpack("<HH", head[26:30])
+            blob = arc.read(off, 30 + nlen + xlen + cs)
+            dest.write_bytes(member_bytes(blob, off, off, cs, m))
+            if n % 50 == 0:
+                print(f"{n}/{len(picks)} full recordings", flush=True)
+        print(f"saved {len(picks)} full recordings to {raw_dir}")
+        return
 
     index = OUT / "raw_index" / "train.csv"
     if not index.exists():

@@ -112,12 +112,16 @@ def split(labels, val_frac, seed, signers=None):
     return np.array(tr), np.array(va)
 
 
-def evaluate(model, X, y):
+def evaluate(model, X, y, chunk=1024):
+    """Run in chunks so large validation sets fit in memory."""
     model.eval()
+    probs = []
     with torch.no_grad():
-        logits = model(torch.from_numpy(X))
-    top = logits.topk(5, 1).indices.numpy()
-    return float((top[:, 0] == y).mean()), float((top == y[:, None]).any(1).mean()), logits.softmax(1).numpy()
+        for i in range(0, len(X), chunk):
+            probs.append(model(torch.from_numpy(X[i:i + chunk])).softmax(1).numpy())
+    probs = np.concatenate(probs)
+    top = np.argsort(-probs, 1)[:, :5]
+    return float((top[:, 0] == y).mean()), float((top == y[:, None]).any(1).mean()), probs
 
 
 def export(model, mean, std, classes, categories, metrics, lang):
@@ -164,6 +168,9 @@ def main():
     ap.add_argument("--lang", default="isl", choices=sorted(LANGS))
     ap.add_argument("--epochs", type=int, default=120)
     ap.add_argument("--width", type=int, default=160)
+    ap.add_argument("--eval-every", type=int, default=10)
+    ap.add_argument("--per-batch", action="store_true", help="build features per batch (low memory)")
+    ap.add_argument("--no-export", action="store_true", help="train and report only (for testing)")
     ap.add_argument("--val", type=float, default=0.2)
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--full", action="store_true", help="train on all data after validating (for export)")
@@ -180,11 +187,16 @@ def main():
         tr = np.arange(len(labels))
     print(f"train {len(tr)}  val {len(va)}  classes {len(classes)}")
 
-    base = featurize(seqs[tr])
+    # Normalisation stats from a sample (enough for stable means, and fits in memory).
+    sample = np.random.default_rng(args.seed).choice(tr, size=min(len(tr), 6000), replace=False)
+    base = featurize(seqs[sample])
     mean = base.reshape(-1, FEAT_DIM).mean(0)
     std = base.reshape(-1, FEAT_DIM).std(0) + 1e-4
-    Xva = (featurize(seqs[va]) - mean) / std
+    del base
+    Xva = ((featurize(seqs[va]) - mean) / std).astype(np.float32)
     yva = labels[va]
+    # Large datasets: build each batch's features as needed instead of the whole epoch at once.
+    per_batch = args.per_batch or len(tr) > 20000
 
     model = SignNet(len(classes), width=args.width)
     opt = torch.optim.AdamW(model.parameters(), lr=2e-3, weight_decay=0.05)
@@ -195,20 +207,21 @@ def main():
     t0 = time.time()
     for epoch in range(args.epochs):
         model.train()
-        X = (featurize(seqs[tr], rng) - mean) / std
+        X = None if per_batch else (featurize(seqs[tr], rng) - mean) / std
         y = labels[tr]
         perm = rng.permutation(len(tr))
         total = 0.0
         for i in range(0, len(perm), 64):
             b = perm[i:i + 64]
-            xb, yb = torch.from_numpy(X[b]), torch.from_numpy(y[b])
+            xbatch = ((featurize(seqs[tr[b]], rng) - mean) / std).astype(np.float32) if per_batch else X[b]
+            xb, yb = torch.from_numpy(xbatch), torch.from_numpy(y[b])
             loss = F.cross_entropy(model(xb), yb, label_smoothing=0.1)
             opt.zero_grad()
             loss.backward()
             opt.step()
             sched.step()
             total += loss.item() * len(b)
-        if (epoch + 1) % 10 == 0 or epoch == args.epochs - 1:
+        if (epoch + 1) % args.eval_every == 0 or epoch == args.epochs - 1:
             msg = f"epoch {epoch + 1:3d}  loss {total / len(tr):.3f}"
             if len(va) and not args.full:
                 top1, top5, _ = evaluate(model, Xva, yva)
@@ -232,7 +245,8 @@ def main():
             new_people = signers is not None and bool((np.asarray(signers) >= 0).all())
             metrics.update({"val_top1": round(top1, 4), "val_top5": round(top5, 4), "val_samples": int(len(va)),
                             "val_new_signers": new_people})
-    export(model, mean, std, classes, categories, metrics, args.lang)
+    if not args.no_export:
+        export(model, mean, std, classes, categories, metrics, args.lang)
 
 
 if __name__ == "__main__":

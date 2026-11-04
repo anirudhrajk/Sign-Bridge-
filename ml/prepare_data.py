@@ -49,13 +49,14 @@ def load(path):
     return out.astype(np.float16)
 
 
-def save(lang, seqs, labels, classes, categories, signers):
+def save(lang, seqs, labels, classes, categories, signers, ids=None):
     out = CACHE_DIR / lang / "landmarks.npz"
     out.parent.mkdir(parents=True, exist_ok=True)
     arr = np.empty(len(seqs), dtype=object)
     arr[:] = list(seqs)
     np.savez_compressed(out, seqs=arr, labels=np.asarray(labels), classes=np.array(classes),
-                        categories=np.array(categories), signers=np.asarray(signers))
+                        categories=np.array(categories), signers=np.asarray(signers),
+                        ids=np.asarray(ids if ids is not None else np.arange(len(seqs))))
     print(f"saved {len(seqs)} recordings, {len(classes)} signs -> {out}")
 
 
@@ -74,15 +75,16 @@ def build_asl():
     shards = sorted((ROOT / "data" / "asl" / "shards").glob("shard_*.npz"))
     if not shards:
         sys.exit("No ASL shards yet. Run: py -3.11 ml/download_asl.py")
-    seqs, signs, signers = [], [], []
+    seqs, signs, signers, ids = [], [], [], []
     for s in shards:
         d = np.load(s, allow_pickle=True)
         seqs += list(d["seqs"])
         signs += d["sign"].tolist()
         signers += d["participant_id"].tolist()
+        ids += d["sequence_id"].tolist()
     classes = sorted(set(signs))
     labels = [classes.index(x) for x in signs]
-    save("asl", seqs, labels, classes, ["asl"] * len(classes), signers)
+    save("asl", seqs, labels, classes, ["asl"] * len(classes), signers, ids)
 
 
 def main():

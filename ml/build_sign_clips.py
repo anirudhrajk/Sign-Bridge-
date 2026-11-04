@@ -163,18 +163,17 @@ def main():
     npz = np.load(cache_path(args.lang), allow_pickle=True)
     # Read each array once: indexing an NpzFile re-reads and decompresses the whole array.
     cache = {k: npz[k] for k in ("seqs", "labels", "classes", "categories")}
-    files = sorted(glob.glob(str(ROOT / "data" / "keypoints" / "**" / "*.parquet"), recursive=True))
-    assert len(files) == len(cache["seqs"]), "cache and files out of sync; rerun prepare_data.py"
+    cache["ids"] = npz["ids"] if "ids" in npz.files else np.arange(len(cache["seqs"]))
     m, t = load_model(export_dir(args.lang))
     classes, labels = cache["classes"].tolist(), cache["labels"]
-    template = build_template(cache)
+    rng = np.random.default_rng(0)
 
-    step = max(1, round(SRC_FPS / args.fps))
-    out_dir = ROOT / "static" / "signs" / args.lang
-    out_dir.mkdir(parents=True, exist_ok=True)
-    blobs, index, offset = [], [], 0
+    # 1. Pick the clearest recording of each sign.
+    choices = []
     for c, name in enumerate(classes):
         cand = np.flatnonzero(labels == c)
+        if len(cand) > 80:  # large datasets: score a random sample
+            cand = rng.choice(cand, 80, replace=False)
         best, best_score = None, -1
         for i in cand:
             seq = np.asarray(cache["seqs"][i], dtype=np.float32)
@@ -183,7 +182,29 @@ def main():
             score = p * (0.5 + 0.5 * hands)
             if score > best_score:
                 best, best_score = i, score
-        raw = read_raw(files[best])
+        choices.append((c, name, int(best), float(best_score)))
+
+    # 2. Find the full recording (with face points) for each choice.
+    if args.lang == "isl":
+        files = sorted(glob.glob(str(ROOT / "data" / "keypoints" / "**" / "*.parquet"), recursive=True))
+        assert len(files) == len(cache["seqs"]), "cache and files out of sync; rerun prepare_data.py"
+        source = {best: files[best] for _, _, best, _ in choices}
+    else:
+        raw_dir = ROOT / "data" / args.lang / "raw_clips"
+        want = {best: int(cache["ids"][best]) for _, _, best, _ in choices}
+        source = {b: raw_dir / f"{sid}.parquet" for b, sid in want.items()}
+        missing = [sid for b, sid in want.items() if not source[b].exists()]
+        if missing:
+            (ROOT / "data" / args.lang / "clip_choices.json").write_text(json.dumps(sorted(want.values())))
+            sys.exit(f"{len(missing)} full recordings needed. Run: py -3.11 ml/download_asl.py --clips, then rerun this.")
+
+    template = build_template(cache)
+    step = max(1, round(SRC_FPS / args.fps))
+    out_dir = ROOT / "static" / "signs" / args.lang
+    out_dir.mkdir(parents=True, exist_ok=True)
+    blobs, index, offset = [], [], 0
+    for c, name, best, best_score in choices:
+        raw = read_raw(source[best])
         norm, present = normalise(raw, template)
         active = np.flatnonzero(present["lh"] | present["rh"])
         a = max(0, active[0] - 6) if len(active) else 0
