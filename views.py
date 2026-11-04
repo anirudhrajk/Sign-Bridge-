@@ -152,7 +152,14 @@ def doctor_home():
     _require_role("doctor", "admin")
     sessions = Session.query.filter_by(status="open").order_by(Session.created_at.desc()).all()
     counts = {s.id: len(s.messages) for s in sessions}
-    return render_template("doctor_home.html", sessions=sessions, counts=counts)
+    # A patient whose latest message is an emergency, pain report or request needs attention first.
+    urgent = {}
+    for s in sessions:
+        last = next((m for m in reversed(s.messages) if m.direction == "patient_to_doctor"), None)
+        if last and last.source in ("emergency", "pain", "request"):
+            urgent[s.id] = {"emergency": "Emergency", "pain": "Pain report", "request": "Request"}[last.source]
+    sessions.sort(key=lambda s: s.id not in urgent)
+    return render_template("doctor_home.html", sessions=sessions, counts=counts, urgent=urgent)
 
 
 @views_bp.route("/doctor/session/<int:session_id>")
