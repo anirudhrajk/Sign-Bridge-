@@ -1,0 +1,7 @@
+.git
+data/
+instance/
+__pycache__/
+*.pth
+.env
+.claude/

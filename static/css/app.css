@@ -720,3 +720,14 @@ html.a11y-motion *, html.a11y-motion *::before, html.a11y-motion *::after { anim
   body { background: #fff; color: #000; }
   .card, .deaf-card { box-shadow: none; border-color: #999; }
 }
+
+/* ---------- Face-to-face mode ---------- */
+.together { padding-top: 0; padding-bottom: 40px; }
+.together__intro { margin: 4px 0 18px; }
+.together__intro h1 { font-size: clamp(1.6rem, 3vw, 2.2rem); letter-spacing: -.03em; margin-bottom: 4px; }
+.said { padding: 14px 16px; border-radius: var(--radius); background: var(--accent-soft); margin-bottom: 14px; }
+.said small { display: block; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--accent); }
+.said p { margin: 4px 0 0; font-size: 1.35rem; font-weight: 650; letter-spacing: -.01em; }
+.said p.empty { font-size: .95rem; font-weight: 400; }
+.said--flash { animation: saidFlash 1s ease; }
+@keyframes saidFlash { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }

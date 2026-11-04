@@ -10,6 +10,10 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+    # Set HTTPS=1 when the app is served over https:// (cookies are then never sent over http).
+    SESSION_COOKIE_SECURE = REMEMBER_COOKIE_SECURE = os.environ.get("HTTPS") == "1"
+    # Set TRUST_PROXY=1 behind a reverse proxy (Caddy, nginx, a cloud host) so https links are right.
+    TRUST_PROXY = os.environ.get("TRUST_PROXY") == "1"
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     MESSAGE_RETENTION_DAYS = int(os.environ.get("MESSAGE_RETENTION_DAYS", 90))
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")

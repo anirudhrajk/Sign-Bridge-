@@ -1,4 +1,8 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, abort, jsonify
+import hashlib
+import json
+from pathlib import Path
+
+from flask import Blueprint, render_template, redirect, url_for, request, flash, abort, jsonify, Response, current_app
 from flask_login import login_required, current_user
 from extensions import db
 from models import Session, Message, MedicalSign, Phrase, AuditLog, User
@@ -20,6 +24,47 @@ def _require_role(*roles):
 @views_bp.route("/")
 def welcome():
     return render_template("welcome.html")
+
+
+# ---------- offline support ----------
+OFFLINE_PAGES = ["/together", "/offline", "/"]
+SKIP_FROM_PRECACHE = {"README.md", "pose_landmark_full.tflite", "sw.js"}
+
+
+def _precache_files():
+    static = Path(current_app.static_folder)
+    globs = ["css/*.css", "js/*.js", "icons/*.png", "icon.svg", "manifest.webmanifest",
+             "models/*/model.json", "models/*/weights.bin", "signs/*/clips.json", "signs/*/clips.bin", "vendor/holistic/*"]
+    files = sorted({f for g in globs for f in static.glob(g) if f.is_file() and f.name not in SKIP_FROM_PRECACHE})
+    return static, files
+
+
+@views_bp.route("/sw.js")
+def service_worker():
+    static, files = _precache_files()
+    h = hashlib.sha1()
+    templates = Path(current_app.root_path) / "templates"
+    for f in files + sorted(templates.glob("*.html")):
+        st = f.stat()
+        h.update(f"{f.name}:{st.st_size}:{int(st.st_mtime)}".encode())
+    urls = OFFLINE_PAGES + ["/static/" + f.relative_to(static).as_posix() for f in files]
+    body = (static / "sw.js").read_text(encoding="utf-8")
+    body = body.replace("'__VERSION__'", json.dumps(h.hexdigest()[:12])).replace("__PRECACHE__", json.dumps(urls))
+    resp = Response(body, mimetype="application/javascript")
+    resp.headers["Cache-Control"] = "no-cache"
+    resp.headers["Service-Worker-Allowed"] = "/"
+    return resp
+
+
+@views_bp.route("/offline")
+def offline():
+    return render_template("offline.html")
+
+
+@views_bp.route("/together")
+def together():
+    """Face-to-face mode on one shared device. No login and no server data, so it works offline."""
+    return render_template("together.html", lang="isl", avatar_lang="isl", languages=[])
 
 
 @views_bp.route("/dashboard")

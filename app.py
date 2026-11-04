@@ -84,6 +84,9 @@ def create_app(config_class=Config):
     db.init_app(app)
     login_manager.init_app(app)
     oauth.init_app(app)
+    if app.config.get("TRUST_PROXY"):
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     if app.config["GOOGLE_CLIENT_ID"] and app.config["GOOGLE_CLIENT_SECRET"]:
         oauth.register(
             name="google",

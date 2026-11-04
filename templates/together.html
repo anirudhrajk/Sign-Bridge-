@@ -1,0 +1,73 @@
+{% extends "public.html" %}
+{% block title %}Face-to-face · SignBridge{% endblock %}
+{% block body %}
+<header class="public-nav">
+  <a class="brand" href="{{ url_for('views.welcome') }}">
+    <span class="brand__mark"><svg class="icon"><use href="#i-logo"/></svg></span>
+    <span class="brand__name">SignBridge</span>
+  </a>
+  <div class="public-nav__links">
+    <span class="chip chip--soft"><svg class="icon" style="width:14px;height:14px"><use href="#i-wifi-off"/></svg> Works offline</span>
+    <a class="btn btn--quiet" href="{{ url_for('views.dashboard') }}">Full app</a>
+  </div>
+</header>
+
+<main class="landing together">
+  <div class="together__intro">
+    <h1>Face-to-face</h1>
+    <p class="muted">One device between you. The patient signs, the doctor types, and the avatar signs back. Nothing leaves this device, and no internet is needed.</p>
+  </div>
+
+  {% set send_label = 'Show to doctor' %}
+  {% set message_label = 'Patient’s message' %}
+  {% include "_sign_panel.html" %}
+
+  <section class="translator mt">
+    <div class="card">
+      <header class="card__head"><h2>Doctor’s reply</h2><span class="chip chip--accent">Doctor</span></header>
+      <div class="said" id="patientSaid" aria-live="polite"><small>Patient said</small><p class="empty">Nothing yet.</p></div>
+      <label class="field"><span>Type a short reply</span>
+        <textarea id="doctorText" rows="3" maxlength="600" placeholder="e.g. Take this medicine tomorrow morning"></textarea>
+      </label>
+      <div class="translator__controls">
+        <button class="btn btn--primary" id="signItBtn" type="button"><svg class="icon"><use href="#i-hand"/></svg> Sign it to the patient</button>
+        <button class="btn btn--ghost" id="micBtn" type="button"><svg class="icon"><use href="#i-mic"/></svg> Speak</button>
+      </div>
+      <p class="section-title mt">Quick replies</p>
+      <div class="alts__list">
+        {% for q in ['Hello, how are you?', 'Where does it hurt?', 'Take this medicine', 'Come back tomorrow', 'You are healthy', 'Go to the hospital today', 'Thank you'] %}
+        <button class="chip alt" type="button" data-quick="{{ q }}">{{ q }}</button>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card">
+      <header class="card__head"><h2>Signed for the patient</h2></header>
+      {% set avatar_id = 'togetherAvatar' %}
+      {% set avatar_hint = "The doctor's reply will be signed here." %}
+      {% include "_avatar.html" %}
+    </div>
+  </section>
+
+  <section class="card mt">
+    <header class="card__head"><h2>This conversation</h2>
+      <div class="translator__controls" style="margin:0">
+        <button class="btn btn--ghost btn--sm" type="button" onclick="window.print()">Print</button>
+        <button class="btn btn--ghost btn--sm" type="button" id="clearLog">Clear</button>
+      </div>
+    </header>
+    <ul class="message-list message-list--chat" id="log"></ul>
+    <p class="muted small mt" style="margin-bottom:0">Kept only on this device until you clear it.</p>
+  </section>
+</main>
+<footer class="public-foot"><div><span>SignBridge face-to-face mode</span><span>A communication aid. In an emergency, alert staff directly.</span></div></footer>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/holistic/holistic.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sign-model.js') }}"></script>
+<script src="{{ url_for('static', filename='js/avatar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sign-planner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/avatar-ui.js') }}"></script>
+<script src="{{ url_for('static', filename='js/camera.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/together.js') }}" defer></script>
+{% endblock %}

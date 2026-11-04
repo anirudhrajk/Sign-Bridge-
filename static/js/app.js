@@ -96,4 +96,9 @@ function showCall(call) {
   setInterval(check, 4000);
 })();
 
+// Install the offline support (works on https:// and on localhost).
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
+
 window.SignBridge = { sendMessage, toast, showCall };

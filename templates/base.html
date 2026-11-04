@@ -8,6 +8,8 @@
   <meta name="theme-color" content="#0c1311" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
   <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   <script>
     try {
@@ -70,6 +72,9 @@
         {% endif %}
       {% endif %}
       <p class="nav__label">Reference</p>
+      <a class="nav__item nav__item--secondary {{ 'is-active' if ep == 'views.together' }}" href="{{ url_for('views.together') }}">
+        <svg class="icon"><use href="#i-users"/></svg> Face-to-face
+      </a>
       <a class="nav__item {{ 'is-active' if ep == 'views.dictionary' }}" href="{{ url_for('views.dictionary') }}">
         <svg class="icon"><use href="#i-book"/></svg> Dictionary
       </a>
