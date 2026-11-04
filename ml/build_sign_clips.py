@@ -44,6 +44,9 @@ FACE = [i for g in FACE_GROUPS.values() for i in g]
 SRC_FPS = 30
 SCALE = 1000  # int16 units per shoulder width
 MAX_GAP = 8   # source frames of missing hand that we interpolate across
+# Width/height of the face (outer eye corners vs eye line to mouth) in the ISL videos, whose avatar
+# looks right. Other datasets (e.g. upright phone videos) are rescaled sideways to match.
+REFERENCE_FACE_RATIO = 1.408
 
 
 def read_raw(path):
@@ -85,6 +88,24 @@ def rest_hand(template, wrist, elbow, size):
     R = np.array([[c, -s], [s, c]], dtype=np.float32)
     xy = template[:, :2] * size @ R.T + wrist
     return np.concatenate([xy, template[:, 2:3] * size], 1)
+
+
+def match_aspect(raw):
+    """Rescale x so the face has the reference proportions (fixes portrait/landscape stretch)."""
+    f = raw["face"]
+    i = {v: k for k, v in enumerate(FACE)}
+    er, el, mt, mb = (f[:, i[33]], f[:, i[263]], f[:, i[13]], f[:, i[14]])
+    ratio = np.abs(el[:, 0] - er[:, 0]) / ((mt[:, 1] + mb[:, 1]) / 2 - (el[:, 1] + er[:, 1]) / 2)
+    ratio = np.nanmedian(ratio[np.isfinite(ratio) & (ratio > 0)]) if np.isfinite(ratio).any() else np.nan
+    if not np.isfinite(ratio):
+        return raw
+    k = REFERENCE_FACE_RATIO / ratio
+    out = {}
+    for key, a in raw.items():
+        a = a.copy()
+        a[..., 0] = 0.5 + (a[..., 0] - 0.5) * k
+        out[key] = a
+    return out
 
 
 def normalise(raw, template):
@@ -198,13 +219,17 @@ def main():
             (ROOT / "data" / args.lang / "clip_choices.json").write_text(json.dumps(sorted(want.values())))
             sys.exit(f"{len(missing)} full recordings needed. Run: py -3.11 ml/download_asl.py --clips, then rerun this.")
 
-    template = build_template(cache)
+    # The relaxed hand comes from the ISL recordings, which are not stretched.
+    isl = np.load(cache_path("isl"), allow_pickle=True)
+    template = build_template({"seqs": isl["seqs"]})
     step = max(1, round(SRC_FPS / args.fps))
     out_dir = ROOT / "static" / "signs" / args.lang
     out_dir.mkdir(parents=True, exist_ok=True)
     blobs, index, offset = [], [], 0
     for c, name, best, best_score in choices:
         raw = read_raw(source[best])
+        if args.lang != "isl":
+            raw = match_aspect(raw)
         norm, present = normalise(raw, template)
         active = np.flatnonzero(present["lh"] | present["rh"])
         a = max(0, active[0] - 6) if len(active) else 0
