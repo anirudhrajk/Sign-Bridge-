@@ -247,6 +247,8 @@ def main():
     ap.add_argument("--epochs", type=int, default=200)
     ap.add_argument("--dim", type=int, default=192)
     ap.add_argument("--repeats", type=int, default=2)
+    ap.add_argument("--drop", type=float, default=0.2)
+    ap.add_argument("--head-drop", type=float, default=0.4)
     ap.add_argument("--batch", type=int, default=256)
     ap.add_argument("--lr", type=float, default=1.5e-3)
     ap.add_argument("--eval-every", type=int, default=5)
@@ -276,7 +278,7 @@ def main():
     print(f"{args.lang}: train {len(tr)} val {len(va)} ({'new signers' if (signers >= 0).all() else 'random split'}), "
           f"{len(classes)} signs, device {dev}", flush=True)
 
-    model = SignNetV2(len(classes), d=args.dim, repeats=args.repeats).to(dev)
+    model = SignNetV2(len(classes), d=args.dim, repeats=args.repeats, drop=args.drop, head_drop=args.head_drop).to(dev)
     print(f"parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f} M", flush=True)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.05)
     steps = args.epochs * math.ceil(len(tr) / args.batch)

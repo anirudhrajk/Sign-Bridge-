@@ -36,7 +36,7 @@ from ml import landmarks_v2  # noqa: E402
 COMP = "asl-signs"
 OUT = ROOT / "data" / "asl"
 SHARDS = OUT / "shards"  # replaced by --v2 (127 points) below
-SHARD_SIZE = 2000
+SHARD_SIZE = 1000
 CHUNK = 48 * 1024 * 1024  # bytes fetched per range request
 
 
@@ -203,9 +203,9 @@ def main():
     todo = sorted((e for e in entries if e[0].endswith(".parquet")
                    and int(Path(e[0]).stem) in meta and int(Path(e[0]).stem) not in have),
                   key=lambda e: e[1])
-    k, n_parts = (int(v) for v in args.part.split("/"))
+    part_k, n_parts = (int(v) for v in args.part.split("/"))
     # Each part takes its own contiguous stretch of the archive, so no bytes are read twice.
-    lo, hi = len(todo) * k // n_parts, len(todo) * (k + 1) // n_parts
+    lo, hi = len(todo) * part_k // n_parts, len(todo) * (part_k + 1) // n_parts
     todo = todo[lo:hi]
     if args.limit:
         todo = todo[:args.limit]
@@ -228,10 +228,10 @@ def main():
     def flush():
         if not buf["seqs"]:
             return
-        n = len(list(SHARDS.glob(f"shard_p{k}of{n_parts}_*.npz"))) if n_parts > 1 else len(list(SHARDS.glob("shard_*.npz")))
+        n = len(list(SHARDS.glob(f"shard_p{part_k}of{n_parts}_*.npz"))) if n_parts > 1 else len(list(SHARDS.glob("shard_*.npz")))
         arr = np.empty(len(buf["seqs"]), dtype=object)
         arr[:] = buf["seqs"]
-        name = f"shard_p{k}of{n_parts}_{n:04d}.npz" if n_parts > 1 else f"shard_{n:04d}.npz"
+        name = f"shard_p{part_k}of{n_parts}_{n:04d}.npz" if n_parts > 1 else f"shard_{n:04d}.npz"
         np.savez_compressed(SHARDS / name, seqs=arr,
                             sequence_id=np.array(buf["sequence_id"]),
                             participant_id=np.array(buf["participant_id"]),
