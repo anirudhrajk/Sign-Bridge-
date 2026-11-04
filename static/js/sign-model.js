@@ -3,14 +3,32 @@
 (() => {
   const POSE_IDS = [0, 11, 12, 13, 14, 15, 16];
 
-  /** Turn one MediaPipe Holistic result into 49 [x, y] points (null when not detected). */
+  /**
+   * Turn one MediaPipe Holistic result into 49 [x, y] points (null when not detected).
+   * Each hand is assigned to the arm whose wrist it is attached to, not to the tracker's
+   * left/right label: a swapped label drops accuracy from ~98% to ~12%, and labels can differ
+   * between cameras and browsers. The body tracker's own left and right arms are consistent.
+   */
   function holisticToPoints(res) {
     const pts = new Array(49).fill(null);
     const pose = res.poseLandmarks;
     if (pose) POSE_IDS.forEach((id, i) => { if (pose[id]) pts[i] = [pose[id].x, pose[id].y]; });
+    let hands = [res.leftHandLandmarks, res.rightHandLandmarks];
+    const lw = pose?.[15], rw = pose?.[16];          // the pose's left and right wrists
+    if (lw && rw) {
+      const d = (h, w) => (h ? Math.hypot(h[0].x - w.x, h[0].y - w.y) : Infinity);
+      const [a, b] = hands;
+      if (a && b) {
+        if (d(a, rw) + d(b, lw) < d(a, lw) + d(b, rw)) hands = [b, a];
+      } else if (a || b) {                            // one hand: put it on the nearer wrist
+        const h = a || b;
+        hands = d(h, lw) <= d(h, rw) ? [h, null] : [null, h];
+      }
+    }
     const put = (hand, offset) => { if (hand) hand.forEach((p, i) => { pts[offset + i] = [p.x, p.y]; }); };
-    put(res.leftHandLandmarks, 7);
-    put(res.rightHandLandmarks, 28);
+    put(hands[0], 7);
+    put(hands[1], 28);
+    SignModel.lastSwap = hands[0] !== res.leftHandLandmarks && !!(res.leftHandLandmarks || res.rightHandLandmarks);
     return pts;
   }
 
@@ -76,8 +94,8 @@
       this.C = this.t['inp.w'].shape[0];
     }
 
-    /** frames: array of 49-point frames. Returns [{index, name, label, p}] sorted by p. */
-    predict(frames, top = 5) {
+    /** Run the network. Returns {logp: log-probabilities of known signs, emb: unit-length fingerprint}. */
+    run(frames) {
       const { T, F, C } = this;
       const seq = trim(frames);
       const x = new Float32Array(T * F);
@@ -135,10 +153,41 @@
         logits[n] = s; if (s > hi) hi = s;
       }
       let z = 0;
-      for (let n = 0; n < N; n++) { logits[n] = Math.exp(logits[n] - hi); z += logits[n]; }
-      const ranked = Array.from(logits, (v, n) => ({ index: n, p: v / z }))
-        .sort((a, b) => b.p - a.p).slice(0, top);
-      return ranked.map(r => ({ ...r, name: this.m.classes[r.index], label: this.labels[r.index] }));
+      for (let n = 0; n < N; n++) z += Math.exp(logits[n] - hi);
+      const lz = hi + Math.log(z);
+      const logp = logits.map(v => v - lz);
+      let norm = 0;
+      for (let j = 0; j < 2 * C; j++) norm += pooled[j] * pooled[j];
+      norm = Math.sqrt(norm) || 1;
+      return { logp, emb: pooled.map(v => v / norm) };
+    }
+
+    /** Fingerprint only (for taught signs). */
+    embed(frames) { return this.run(frames).emb; }
+
+    /**
+     * Taught signs: [{label, emb}] (several examples per label). They compete with the known
+     * signs on one scale: score = 20 x best similarity - 19, calibrated on 30 held-out signs
+     * so known words keep ~95.5% accuracy (see docs/teach-a-sign.md).
+     */
+    setCustom(examples) { this.custom = examples || []; }
+
+    /** frames: array of 49-point frames. Returns [{index, name, label, p, custom?}] sorted by p. */
+    predict(frames, top = 5) {
+      const { logp, emb } = this.run(frames);
+      const scores = Array.from(logp, (v, n) => ({ index: n, s: v, name: this.m.classes[n], label: this.labels[n] }));
+      const best = new Map();
+      for (const ex of this.custom || []) {
+        let sim = 0;
+        for (let j = 0; j < emb.length; j++) sim += emb[j] * ex.emb[j];
+        if (!best.has(ex.label) || sim > best.get(ex.label)) best.set(ex.label, sim);
+      }
+      for (const [label, sim] of best) scores.push({ index: -1, s: 20 * sim - 19, name: 'taught:' + label, label, custom: true, sim });
+      const hi = Math.max(...scores.map(x => x.s));
+      let z = 0;
+      for (const x of scores) z += Math.exp(x.s - hi);
+      for (const x of scores) x.p = Math.exp(x.s - hi) / z;
+      return scores.sort((a, b) => b.p - a.p).slice(0, top).map(({ s, ...r }) => r);
     }
   }
 

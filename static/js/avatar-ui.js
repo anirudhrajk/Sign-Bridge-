@@ -39,6 +39,15 @@
       return plan;
     };
     el.plan = text => (planner ? planner.plan(text) : []);
+    // Play one sign by its name (used by "show me how").
+    el.playSign = (name, label) => {
+      if (!avatar) { pending = label; return; }
+      const plan = [{ word: label, sign: name }];
+      lastText = label;
+      renderCaption(plan);
+      replay.disabled = false;
+      avatar.play(plan);
+    };
 
     getPack(el.dataset.lang).then(pack => {
       avatar = new SignAvatar(canvas, pack, {
@@ -47,6 +56,7 @@
       });
       planner = new SignPlanner(pack.manifest.clips);
       loading.hidden = true;
+      el.ready = true;
       el.dispatchEvent(new CustomEvent('avatar:ready'));
       if (pending) { el.say(pending); pending = null; }
     }).catch(() => { loading.textContent = 'Signer unavailable. Messages still appear as text.'; });

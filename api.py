@@ -3,7 +3,9 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from extensions import db
-from models import Session, Message, Phrase
+import json
+
+from models import Session, Message, Phrase, CustomSign
 from services.sign_recognition import supported_signs, model_info, available_languages, resolve_language
 from services.language_processing import sentence_to_signs
 from services.audit import log_action
@@ -161,4 +163,62 @@ def toggle_consent(purpose):
         grant_consent(current_user.id, purpose)
     else:
         revoke_consent(current_user.id, purpose)
+    return jsonify({"ok": True})
+
+# ---------- taught signs ----------
+def _valid_frames(frames):
+    if not isinstance(frames, list) or not 8 <= len(frames) <= 150:
+        return False
+    for f in frames:
+        if not isinstance(f, list) or len(f) != 49:
+            return False
+        for p in f:
+            if p is not None and not (isinstance(p, list) and len(p) == 2 and all(isinstance(v, (int, float)) for v in p)):
+                return False
+    return True
+
+
+@api_bp.get("/custom-signs")
+@login_required
+def list_custom_signs():
+    lang = request.args.get("lang", "isl")
+    rows = CustomSign.query.filter_by(lang=lang).order_by(CustomSign.label, CustomSign.id).all()
+    return jsonify({"signs": [
+        {"id": r.id, "label": r.label, "frames": json.loads(r.frames), "by": r.author.display_name,
+         "mine": r.created_by == current_user.id} for r in rows
+    ]})
+
+
+@api_bp.post("/custom-signs")
+@login_required
+def add_custom_sign():
+    data = request.get_json(silent=True) or {}
+    label = " ".join((data.get("label") or "").strip().lower().split())[:60]
+    lang = data.get("lang") or "isl"
+    frames = data.get("frames")
+    if not label or not all(ch.isalnum() or ch in " '-" for ch in label):
+        return jsonify({"error": "Use a short word or phrase (letters and numbers)."}), 400
+    if lang not in {x["code"] for x in available_languages()}:
+        return jsonify({"error": "Unknown sign language"}), 400
+    if not _valid_frames(frames):
+        return jsonify({"error": "That recording was too short or too long. Try again."}), 400
+    if CustomSign.query.filter_by(lang=lang, label=label).count() >= 20:
+        return jsonify({"error": "This sign already has enough examples."}), 400
+    frames = [[None if p is None else [round(float(p[0]), 4), round(float(p[1]), 4)] for p in f] for f in frames]
+    row = CustomSign(lang=lang, label=label, frames=json.dumps(frames, separators=(",", ":")), created_by=current_user.id)
+    db.session.add(row)
+    db.session.commit()
+    log_action("custom_sign_added", f"{lang}: {label}")
+    return jsonify({"id": row.id})
+
+
+@api_bp.delete("/custom-signs/<int:sign_id>")
+@login_required
+def delete_custom_sign(sign_id):
+    row = CustomSign.query.get_or_404(sign_id)
+    if row.created_by != current_user.id and current_user.role not in ("doctor", "admin"):
+        return jsonify({"error": "forbidden"}), 403
+    db.session.delete(row)
+    db.session.commit()
+    log_action("custom_sign_deleted", f"{row.lang}: {row.label}")
     return jsonify({"ok": True})

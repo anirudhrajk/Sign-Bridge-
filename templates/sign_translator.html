@@ -3,14 +3,13 @@
 {% block page_title %}Sign to your doctor{% endblock %}
 {% block page_sub %}Sign one word at a time, then pause or lower your hands. Check the message before you send it.{% endblock %}
 {% block topbar_actions %}
-{% if languages|length > 1 %}
 <label class="lang-pick">
   <span class="visually-hidden">Sign language</span>
   <select id="langPicker" class="btn btn--ghost btn--sm" aria-label="Sign language">
     {% for l in languages %}<option value="{{ l.code }}" {{ 'selected' if l.code == lang }}>{{ l.name }}</option>{% endfor %}
+    {% for code, name in upcoming %}<option value="{{ code }}" disabled>{{ name }} (training…)</option>{% endfor %}
   </select>
 </label>
-{% endif %}
 {% endblock %}
 {% block content %}
 
@@ -21,5 +20,8 @@
 <!-- MediaPipe Holistic is bundled locally so tracking works without internet -->
 <script src="{{ url_for('static', filename='vendor/holistic/holistic.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sign-model.js') }}"></script>
+<script src="{{ url_for('static', filename='js/avatar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sign-planner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/avatar-ui.js') }}"></script>
 <script src="{{ url_for('static', filename='js/camera.js') }}" defer></script>
 {% endblock %}

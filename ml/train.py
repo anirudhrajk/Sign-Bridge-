@@ -124,9 +124,9 @@ def evaluate(model, X, y, chunk=1024):
     return float((top[:, 0] == y).mean()), float((top == y[:, None]).any(1).mean()), probs
 
 
-def export(model, mean, std, classes, categories, metrics, lang):
+def export(model, mean, std, classes, categories, metrics, lang, out=None):
     """Fold BatchNorm into the convolutions and write raw float32 weights + a JSON manifest."""
-    EXPORT = export_dir(lang)
+    EXPORT = Path(out) if out else export_dir(lang)
     EXPORT.mkdir(parents=True, exist_ok=True)
     model.eval()
     tensors, layout = [], []
@@ -171,6 +171,9 @@ def main():
     ap.add_argument("--eval-every", type=int, default=10)
     ap.add_argument("--per-batch", action="store_true", help="build features per batch (low memory)")
     ap.add_argument("--no-export", action="store_true", help="train and report only (for testing)")
+    ap.add_argument("--hold-out-classes", type=int, default=0,
+                    help="leave this many random signs out entirely (to test teaching new signs)")
+    ap.add_argument("--save-to", default="", help="export to this folder instead of static/models/<lang>")
     ap.add_argument("--val", type=float, default=0.2)
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--full", action="store_true", help="train on all data after validating (for export)")
@@ -183,6 +186,14 @@ def main():
     seqs, labels = d["seqs"], d["labels"]
     classes, categories = d["classes"].tolist(), d["categories"].tolist()
     tr, va = split(labels, args.val, args.seed, signers)
+    if args.hold_out_classes:
+        hidden = np.random.default_rng(99).choice(len(classes), args.hold_out_classes, replace=False)
+        keep = np.flatnonzero(~np.isin(np.arange(len(classes)), hidden))
+        remap = -np.ones(len(classes), dtype=int); remap[keep] = np.arange(len(keep))
+        tr, va = tr[np.isin(labels[tr], keep)], va[np.isin(labels[va], keep)]
+        labels = remap[labels]
+        print("hidden signs:", ", ".join(classes[i] for i in hidden))
+        classes = [classes[i] for i in keep]; categories = [categories[i] for i in keep]
     if args.full:
         tr = np.arange(len(labels))
     print(f"train {len(tr)}  val {len(va)}  classes {len(classes)}")
@@ -246,7 +257,7 @@ def main():
             metrics.update({"val_top1": round(top1, 4), "val_top5": round(top5, 4), "val_samples": int(len(va)),
                             "val_new_signers": new_people})
     if not args.no_export:
-        export(model, mean, std, classes, categories, metrics, args.lang)
+        export(model, mean, std, classes, categories, metrics, args.lang, args.save_to or None)
 
 
 if __name__ == "__main__":

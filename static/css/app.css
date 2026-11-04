@@ -731,3 +731,25 @@ html.a11y-motion *, html.a11y-motion *::before, html.a11y-motion *::after { anim
 .said p.empty { font-size: .95rem; font-weight: 400; }
 .said--flash { animation: saidFlash 1s ease; }
 @keyframes saidFlash { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
+
+/* ---------- Learn, practise and teach ---------- */
+.cam-check { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 10px; font-size: .76rem; }
+.cam-check [data-check] { padding: 3px 9px; border-radius: 99px; background: var(--danger-soft); color: var(--danger); font-weight: 600; }
+.cam-check [data-check]::before { content: "\2715  "; }
+.cam-check [data-check].is-ok { background: var(--success-soft); color: var(--success); }
+.cam-check [data-check].is-ok::before { content: "\2713  "; }
+.cam-check [data-fps] { align-self: center; }
+.learn { align-items: start; }
+.practice { margin: 10px 0 0; padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); font-size: .9rem; }
+.practice--ok { background: var(--success-soft); color: var(--success); font-weight: 600; }
+.practice--near { background: var(--warning-soft); color: var(--warning); }
+.practice--no { background: var(--danger-soft); color: var(--danger); }
+.teach-row { display: flex; gap: 8px; }
+.teach-row input {
+  flex: 1; min-width: 0; font-family: inherit; font-size: .92rem; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+}
+.teach-progress { margin-top: 12px; padding: 12px; border-radius: var(--radius); background: var(--primary-soft); }
+.teach-dots { display: flex; gap: 6px; }
+.teach-dots span { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--primary); }
+.teach-dots span.is-done { background: var(--primary); }

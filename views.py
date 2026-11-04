@@ -9,7 +9,7 @@ from models import Session, Message, MedicalSign, Phrase, AuditLog, User
 from services.emergency import get_default_phrases
 from services.dictionary import get_local_seed
 from services.audit import log_action
-from services.sign_recognition import available_languages, resolve_language, avatar_language
+from services.sign_recognition import available_languages, resolve_language, avatar_language, NAMES as SIGN_LANGUAGE_NAMES
 from services.consent import consent_status, has_consent
 from datetime import datetime, timedelta
 
@@ -103,7 +103,10 @@ def sign_translator():
         return redirect(url_for("views.consent"))
     languages = available_languages()
     lang = resolve_language(current_user.sign_language)
-    return render_template("sign_translator.html", languages=languages, lang=lang)
+    have = {l["code"] for l in languages}
+    upcoming = [(code, name) for code, name in SIGN_LANGUAGE_NAMES.items() if code not in have]
+    return render_template("sign_translator.html", languages=languages, lang=lang, upcoming=upcoming,
+                           avatar_lang=avatar_language(lang))
 
 
 @views_bp.route("/patient/pain")

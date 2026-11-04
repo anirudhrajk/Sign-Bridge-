@@ -9,7 +9,7 @@
   const modelStatus = $('modelStatus');
 
   // Tuning
-  const SURE = 0.55;          // add the word automatically at or above this confidence
+  const SURE = 0.7;           // add the word automatically at or above this (99.8% right on test data)
   const MAYBE = 0.2;          // below this, ask the patient to sign again
   const MIN_FRAMES = 8;       // shortest sign we try to read
   const MAX_FRAMES = 150;     // read anyway if a sign runs this long
@@ -22,6 +22,10 @@
   let segment = [], gap = 0, still = 0, moved = 0, lastWrists = null;
   let lastWord = null;        // {text, start} of the word we last added, so it can be replaced
   const confidences = [];
+  let teach = null;           // {label, done} while recording examples of a new sign
+  let practice = null;        // {name, label} after "show me how"
+  const TEACH_COUNT = 5;
+  let fpsT = performance.now(), fpsN = 0;
 
   // ---------- model ----------
   const lang = document.getElementById('translator').dataset.lang || 'isl';
@@ -41,6 +45,7 @@
     modelStatus.textContent = `${lang.toUpperCase()} · ${m.classes.length} signs ready`;
     modelStatus.classList.add('chip--soft');
     buildIndex(m);
+    loadTaught();
     if (running) nowBtn.disabled = false;
   }).catch(() => {
     modelStatus.textContent = 'Signs unavailable';
@@ -105,6 +110,7 @@
     if (!running) return;
     draw(res);
     const frame = SignModel.holisticToPoints(res);
+    updateCheck(res, frame);
     recent.push(frame);
     if (recent.length > 90) recent.shift();
     if (!model) { status.textContent = 'Loading signs…'; return; }
@@ -147,6 +153,7 @@
     segment = []; gap = 0; still = 0; moved = 0; lastWrists = null;
     meter.hidden = true;
     if (frames.length < MIN_FRAMES) return;
+    if (teach) { saveExample(frames); return; }
     classify(frames);
   }
 
@@ -160,6 +167,7 @@
   // ---------- results ----------
   function showResult(top, ms) {
     const best = top[0];
+    if (practice) showPractice(top);
     const sure = best.p >= SURE;
     resultBox.replaceChildren();
     const word = document.createElement('p');
@@ -167,7 +175,7 @@
     meta.className = 'muted';
     if (best.p < MAYBE) {
       word.className = 'empty';
-      word.textContent = "Couldn't read that sign. Try again a little slower.";
+      word.textContent = 'SignBridge doesn’t know this sign yet. Try again slowly, pick a word below, type it, or teach it under “Teach a new sign”.';
       resultBox.append(word);
       renderAlts(top.slice(0, 4), 'Or pick the word you meant:', false);
       return;
@@ -266,6 +274,139 @@
     segment = [];
     classify(frames);
   });
+  // ---------- camera check ----------
+  const check = $('camCheck');
+  function updateCheck(res, frame) {
+    check.hidden = false;
+    const set = (k, ok) => check.querySelector(`[data-check="${k}"]`).classList.toggle('is-ok', !!ok);
+    set('body', res.poseLandmarks); set('left', frame[7]); set('right', frame[28]);
+    fpsN++;
+    const now = performance.now();
+    if (now - fpsT > 1000) {
+      const fps = Math.round(fpsN * 1000 / (now - fpsT));
+      check.querySelector('[data-fps]').textContent = `${fps} fps${fps < 10 ? ' · slow device: sign a little slower' : ''}`;
+      fpsT = now; fpsN = 0;
+    }
+    const ls = res.poseLandmarks?.[11], rs = res.poseLandmarks?.[12];
+    if (ls && rs && Math.abs(ls.x - rs.x) > 0.6) status.textContent = 'Move back a little so your hands stay in view';
+  }
+
+  // ---------- taught signs ----------
+  const CACHE_KEY = `sb-taught-${lang}`;
+  let taught = [];   // [{id, label, frames, by, mine}]
+  async function loadTaught() {
+    try {
+      const res = await fetch(`/api/custom-signs?lang=${lang}`, { headers: { Accept: 'application/json' } });
+      if (!res.ok || !(res.headers.get('content-type') || '').includes('json')) throw new Error('offline or signed out');
+      taught = (await res.json()).signs;
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(taught)); } catch (e) {}
+    } catch (e) {
+      try { taught = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]'); } catch (e2) { taught = []; }
+    }
+    model.setCustom(taught.map(t => ({ label: t.label, emb: model.embed(t.frames) })));
+    renderTaught();
+  }
+
+  function renderTaught() {
+    const list = $('taughtList');
+    const groups = {};
+    taught.forEach(t => (groups[t.label] ||= []).push(t));
+    const labels = Object.keys(groups).sort();
+    $('taughtCount').textContent = `${labels.length} taught`;
+    list.replaceChildren(...labels.map(label => {
+      const li = document.createElement('li');
+      const div = document.createElement('div');
+      div.className = 'grow';
+      const ex = groups[label];
+      const p = document.createElement('p'); p.textContent = label;
+      const small = document.createElement('small');
+      small.textContent = `${ex.length} example${ex.length === 1 ? '' : 's'} · by ${[...new Set(ex.map(e => e.by))].join(', ')}`;
+      div.append(p, small);
+      const more = document.createElement('button');
+      more.type = 'button'; more.className = 'btn btn--quiet btn--sm'; more.textContent = 'Add examples';
+      more.addEventListener('click', () => startTeach(label));
+      li.append(div, more);
+      if (ex.some(e => e.mine)) {
+        const del = document.createElement('button');
+        del.type = 'button'; del.className = 'btn btn--quiet btn--icon'; del.setAttribute('aria-label', `Delete ${label}`);
+        del.innerHTML = '<svg class="icon"><use href="#i-trash"/></svg>';
+        del.addEventListener('click', async () => {
+          if (!confirm(`Delete your examples of "${label}"?`)) return;
+          for (const e of ex.filter(e => e.mine)) await fetch(`/api/custom-signs/${e.id}`, { method: 'DELETE' });
+          loadTaught();
+        });
+        li.append(del);
+      }
+      return li;
+    }));
+  }
+
+  function startTeach(label) {
+    label = (label || $('teachWord').value).trim().toLowerCase();
+    if (!label) { SignBridge.toast('Type the word you want to teach first.'); $('teachWord').focus(); return; }
+    if (!running) { SignBridge.toast('Start the camera first.'); return; }
+    teach = { label, done: 0 };
+    $('teachWord').value = label;
+    $('teachProgress').hidden = false;
+    updateTeach(`Sign "${label}" now, then lower your hands or pause.`);
+  }
+
+  function updateTeach(text) {
+    $('teachDots').replaceChildren(...Array.from({ length: TEACH_COUNT }, (_, i) =>
+      Object.assign(document.createElement('span'), { className: i < teach.done ? 'is-done' : '' })));
+    $('teachText').textContent = text;
+  }
+
+  async function saveExample(frames) {
+    const label = teach.label;
+    const res = await fetch('/api/custom-signs', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label, lang, frames: frames.slice(-150) }),
+    }).catch(() => null);
+    if (!res || !res.ok) {
+      const err = res ? (await res.json().catch(() => ({}))).error : 'You are offline. Teaching needs a connection to the clinic server.';
+      SignBridge.toast(err || 'Could not save that example.');
+      return;
+    }
+    if (!teach) return;
+    teach.done++;
+    if (teach.done >= TEACH_COUNT) {
+      teach = null;
+      $('teachProgress').hidden = true;
+      SignBridge.toast(`Learned "${label}". Try signing it now.`);
+      loadTaught();
+    } else {
+      updateTeach(`Got ${teach.done} of ${TEACH_COUNT}. Sign "${label}" again.`);
+    }
+  }
+
+  $('teachStart').addEventListener('click', () => startTeach());
+  $('teachWord').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); startTeach(); } });
+  $('teachCancel').addEventListener('click', () => { teach = null; $('teachProgress').hidden = true; loadTaught(); });
+
+  // ---------- show me how + practice ----------
+  const learnCard = $('learnCard'), learnAvatar = $('learnAvatar');
+  function showHow(name, label) {
+    learnCard.hidden = false;
+    $('learnWord').textContent = `“${label}”`;
+    practice = { name, label };
+    const note = $('practiceNote');
+    note.textContent = 'Now sign it to the camera. SignBridge will tell you if it recognised it.';
+    note.className = 'practice';
+    const play = () => learnAvatar.playSign(name, label);
+    if (learnAvatar.ready) play(); else learnAvatar.addEventListener('avatar:ready', play, { once: true });
+    learnCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  $('learnClose').addEventListener('click', () => { learnCard.hidden = true; practice = null; });
+
+  function showPractice(top) {
+    const note = $('practiceNote');
+    const rank = top.findIndex(t => t.name === practice.name);
+    if (rank === 0) { note.textContent = `✓ Recognised "${practice.label}". Well done.`; note.className = 'practice practice--ok'; }
+    else if (rank > 0) { note.textContent = `Close: "${practice.label}" was guess #${rank + 1}. It looked more like "${top[0].label}". Watch again and try once more.`; note.className = 'practice practice--near'; }
+    else { note.textContent = `Not recognised yet. It looked like "${top[0].label}". Watch the avatar again and copy the hand shape and movement.`; note.className = 'practice practice--no'; }
+  }
+
   startBtn.addEventListener('click', start);
   stopBtn.addEventListener('click', stop);
   window.addEventListener('pagehide', stop);
@@ -298,10 +439,10 @@
     const host = $('signIndex'), search = $('signSearch');
     $('signCount').textContent = `· ${m.classes.length} words`;
     const groups = {};
-    m.classes.forEach((c, i) => { (groups[m.categories[i]] ||= []).push(m.labels[i]); });
+    m.classes.forEach((c, i) => { (groups[m.categories[i]] ||= []).push([m.labels[i], c]); });
     const render = q => {
       host.replaceChildren(...Object.keys(groups).sort().map(cat => {
-        const words = groups[cat].filter(w => w.toLowerCase().includes(q)).sort();
+        const words = groups[cat].filter(([w]) => w.toLowerCase().includes(q)).sort((a, b) => a[0].localeCompare(b[0]));
         if (!words.length) return document.createComment('');
         const sec = document.createElement('div');
         sec.className = 'sign-index__group';
@@ -310,7 +451,11 @@
         h.textContent = cat.replace(/_/g, ' ');
         const list = document.createElement('div');
         list.className = 'alts__list';
-        list.append(...words.map(w => Object.assign(document.createElement('span'), { className: 'chip', textContent: w })));
+        list.append(...words.map(([w, name]) => {
+          const b = Object.assign(document.createElement('button'), { type: 'button', className: 'chip alt', textContent: w });
+          b.addEventListener('click', () => showHow(name, w));
+          return b;
+        }));
         sec.append(h, list);
         return sec;
       }));

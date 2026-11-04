@@ -115,3 +115,15 @@ class ConsentRecord(db.Model):
     granted_at = db.Column(db.DateTime)
     revoked_at = db.Column(db.DateTime)
     version = db.Column(db.String(20), default="1.0")
+
+class CustomSign(db.Model):
+    """One recorded example of a sign taught by a user (for words the trained model lacks)."""
+    __tablename__ = "custom_signs"
+    id = db.Column(db.Integer, primary_key=True)
+    lang = db.Column(db.String(8), nullable=False, index=True)
+    label = db.Column(db.String(60), nullable=False)
+    frames = db.Column(db.Text, nullable=False)   # JSON: [[ [x,y] | null ] * 49] per frame
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    author = db.relationship("User", foreign_keys=[created_by])
