@@ -20,6 +20,8 @@ speed changes and cropping, tracker dropouts, and the face hidden.
 | ASL (Google ISLR) | 94,477 | 250 | 64.2% | 82.3% | 4 signers never seen in training |
 
 The ASL model averages two networks (192 and 256 wide, `ml/ensemble_v2.py`) in one ONNX file.
+The shipped copy was retrained on all 94,477 recordings (all 21 signers); the scores above are
+from the same recipe tested on 4 held-out signers, since no unseen signers are left to test the final copy.
 On the same 4 held-out signers the old v1 ASL model scored 55.8%. The sign page only adds a
 word when the model is at least 70% sure. For ASL that happens for 59% of signs, and those words
 are right 85% of the time; for the other signs the page shows its top guesses and asks. The best Kaggle score on this data (89.3%) used a
