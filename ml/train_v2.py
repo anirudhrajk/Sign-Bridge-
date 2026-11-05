@@ -118,10 +118,11 @@ class TransBlock(nn.Module):
 
 
 class SignNetV2(nn.Module):
-    def __init__(self, n_classes, d=192, repeats=2, drop=0.2, head_drop=0.4):
+    def __init__(self, n_classes, d=192, repeats=2, drop=0.2, head_drop=0.4, frames=T):
         super().__init__()
+        self.frames = frames
         self.stem = nn.Sequential(nn.Linear(FEAT, d), nn.LayerNorm(d))
-        self.pos = nn.Parameter(torch.zeros(1, T, d))
+        self.pos = nn.Parameter(torch.zeros(1, frames, d))
         blocks = []
         for _ in range(repeats):
             blocks += [ConvBlock(d, drop=drop), ConvBlock(d, drop=drop), ConvBlock(d, drop=drop), TransBlock(d, drop=drop)]
@@ -170,13 +171,13 @@ def mirror_perm(X, M):
     return torch.as_tensor(perm)
 
 
-def augment(x, m, perm, g):
-    """x: (B, 48, P, 2), m: (B, 48, P) on the GPU -> (B, 32, P, 2), (B, 32, P)."""
+def augment(x, m, perm, g, t=T):
+    """x: (B, 48, P, 2), m: (B, 48, P) on the GPU -> (B, t, P, 2), (B, t, P)."""
     B, dev = x.shape[0], x.device
-    # time: random crop of 75-100% and random speed, resampled to 32 frames
+    # time: random crop of 75-100% and random speed, resampled to t frames
     length = (torch.rand(B, 1, device=dev, generator=g) * 0.25 + 0.75) * (T_IN - 1)
     start = torch.rand(B, 1, device=dev, generator=g) * (T_IN - 1 - length)
-    idx = (start + torch.linspace(0, 1, T, device=dev) * length).round().long().clamp(0, T_IN - 1)
+    idx = (start + torch.linspace(0, 1, t, device=dev) * length).round().long().clamp(0, T_IN - 1)
     x = torch.gather(x, 1, idx[:, :, None, None].expand(-1, -1, P, 2))
     m = torch.gather(m, 1, idx[:, :, None].expand(-1, -1, P))
     # left-handed signer
@@ -211,28 +212,47 @@ def augment(x, m, perm, g):
     # tracker: noise, a hand dropping out, missing frames
     x = x + torch.randn(x.shape, device=dev, generator=g) * 0.004
     for sl in (L.SL_LH, L.SL_RH):
-        drop = (torch.rand(B, T, device=dev, generator=g) < 0.12) & (torch.rand(B, 1, device=dev, generator=g) < 0.3)
+        drop = (torch.rand(B, t, device=dev, generator=g) < 0.12) & (torch.rand(B, 1, device=dev, generator=g) < 0.3)
         m[:, :, sl] = m[:, :, sl] * (~drop).float().unsqueeze(-1)
     # face not tracked (mask, poor light, turned away): hide lips, eyes and nose for some samples
     noface = (torch.rand(B, device=dev, generator=g) < 0.2).float()[:, None, None]
     m[:, :, 51:] = m[:, :, 51:] * (1 - noface)
-    gone = (torch.rand(B, T, device=dev, generator=g) < 0.08).float().unsqueeze(-1)
+    gone = (torch.rand(B, t, device=dev, generator=g) < 0.08).float().unsqueeze(-1)
     m = m * (1 - gone)
     return x * m.unsqueeze(-1), m
 
 
-def evenly(x, m):
-    idx = torch.floor(torch.linspace(0, T_IN - 1, T, device=x.device) + 0.5).long()
+def evenly(x, m, t=T):
+    idx = torch.floor(torch.linspace(0, T_IN - 1, t, device=x.device) + 0.5).long()
     return x[:, idx] * m[:, idx].unsqueeze(-1), m[:, idx]
 
 
 # ---------------------------------------------------------------- training
+def awp_perturb(model, step, eps):
+    """Adversarial weight perturbation: move each weight matrix a little in the direction that
+    hurts most (from the current gradients), so training prefers flat minima that generalise to
+    new signers. Returns the original weights to restore after the second backward pass."""
+    saved = []
+    for prm in model.parameters():
+        if prm.grad is None or prm.dim() < 2:
+            continue
+        gn, wn = prm.grad.norm(), prm.data.norm()
+        if not torch.isfinite(gn) or gn == 0:
+            continue
+        w = prm.data.clone()
+        saved.append((prm, w))
+        r = step * prm.grad / gn * wn
+        lim = eps * w.abs()
+        prm.data.copy_(torch.max(torch.min(w + r, w + lim), w - lim))
+    return saved
+
+
 @torch.no_grad()
 def evaluate(model, X, M, y, bs=1024):
     model.eval()
     probs = []
     for i in range(0, len(X), bs):
-        xb, mb = evenly(X[i:i + bs].float(), M[i:i + bs].float())
+        xb, mb = evenly(X[i:i + bs].float(), M[i:i + bs].float(), getattr(model, "frames", T))
         with torch.autocast("cuda", dtype=torch.float16, enabled=X.is_cuda):
             probs.append(model(xb, mb).float().softmax(-1))
     p = torch.cat(probs)
@@ -249,6 +269,11 @@ def main():
     ap.add_argument("--repeats", type=int, default=2)
     ap.add_argument("--drop", type=float, default=0.2)
     ap.add_argument("--head-drop", type=float, default=0.4)
+    ap.add_argument("--frames", type=int, default=T, help=f"frames the model sees (at most {T_IN})")
+    ap.add_argument("--awp", type=float, default=0.0,
+                    help="adversarial weight perturbation step (0 = off; 0.2 is typical), against overfitting")
+    ap.add_argument("--awp-eps", type=float, default=0.01, help="largest AWP change, relative to each weight")
+    ap.add_argument("--awp-start", type=float, default=0.15, help="share of epochs before AWP starts")
     ap.add_argument("--batch", type=int, default=256)
     ap.add_argument("--lr", type=float, default=1.5e-3)
     ap.add_argument("--eval-every", type=int, default=5)
@@ -278,7 +303,8 @@ def main():
     print(f"{args.lang}: train {len(tr)} val {len(va)} ({'new signers' if (signers >= 0).all() else 'random split'}), "
           f"{len(classes)} signs, device {dev}", flush=True)
 
-    model = SignNetV2(len(classes), d=args.dim, repeats=args.repeats, drop=args.drop, head_drop=args.head_drop).to(dev)
+    model = SignNetV2(len(classes), d=args.dim, repeats=args.repeats, drop=args.drop, head_drop=args.head_drop,
+                      frames=args.frames).to(dev)
     print(f"parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f} M", flush=True)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.05)
     steps = args.epochs * math.ceil(len(tr) / args.batch)
@@ -292,11 +318,19 @@ def main():
         total = 0.0
         for i in range(0, len(order), args.batch):
             b = order[i:i + args.batch]
-            xb, mb = augment(X[b].float(), M[b].float(), perm, g)
+            xb, mb = augment(X[b].float(), M[b].float(), perm, g, args.frames)
             with torch.autocast("cuda", dtype=torch.float16, enabled=dev.type == "cuda"):
                 loss = F.cross_entropy(model(xb, mb), y[b], label_smoothing=0.1)
             opt.zero_grad(set_to_none=True)
             scaler.scale(loss).backward()
+            if args.awp and epoch >= args.awp_start * args.epochs:
+                saved = awp_perturb(model, args.awp, args.awp_eps)
+                opt.zero_grad(set_to_none=True)
+                with torch.autocast("cuda", dtype=torch.float16, enabled=dev.type == "cuda"):
+                    adv = F.cross_entropy(model(xb, mb), y[b], label_smoothing=0.1)
+                scaler.scale(adv).backward()   # gradients at the worst nearby weights
+                for prm, w in saved:
+                    prm.data.copy_(w)
             scaler.unscale_(opt)
             nn.utils.clip_grad_norm_(model.parameters(), 2.0)
             scaler.step(opt)
@@ -324,12 +358,12 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     torch.save({"state": best_state, "classes": classes, "args": vars(args)}, out / "model.pt")
     exp = Exported(model.float().cpu().eval())
-    dummy = (torch.zeros(1, T, P, 2), torch.ones(1, T, P))
+    dummy = (torch.zeros(1, args.frames, P, 2), torch.ones(1, args.frames, P))
     torch.onnx.export(exp, dummy, out / "model.onnx", input_names=["points", "mask"],
                       output_names=["logits", "embedding"], opset_version=17, dynamo=False)
     manifest = {
         "format": 2, "version": time.strftime("%Y%m%d-%H%M"), "lang": args.lang, "language": LANGS[args.lang],
-        "frames": T, "points": P,
+        "frames": args.frames, "points": P,
         "pose": L.POSE, "lips": L.LIPS, "eye_r": L.EYE_R, "eye_l": L.EYE_L, "nose": L.NOSE,
         "classes": classes, "labels": [display(c) for c in classes], "categories": cats,
         "metrics": ({**json.loads(Path(args.reported).read_text())["metrics"], "train_samples": len(tr),

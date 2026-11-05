@@ -30,7 +30,7 @@ def load_member(folder):
     ck = torch.load(Path(folder) / "model.pt", map_location="cpu")
     a = ck["args"]
     net = SignNetV2(len(ck["classes"]), d=a["dim"], repeats=a["repeats"],
-                    drop=a.get("drop", 0.2), head_drop=a.get("head_drop", 0.4))
+                    drop=a.get("drop", 0.2), head_drop=a.get("head_drop", 0.4), frames=a.get("frames", T))
     net.load_state_dict(ck["state"])
     return net.eval(), ck
 
@@ -65,6 +65,9 @@ def main():
     nets, cks = zip(*(load_member(f) for f in args.members))
     if any(c["classes"] != cks[0]["classes"] for c in cks):
         sys.exit("members were trained on different sign lists")
+    frames = nets[0].frames
+    if any(n.frames != frames for n in nets):
+        sys.exit("members see different numbers of frames")
     ens = Ensemble(nets).eval()
     first = json.loads((Path(args.members[0]) / "model.json").read_text())
 
@@ -74,7 +77,7 @@ def main():
         d = np.load(ROOT / "data" / "cache_v2" / f"{args.lang}.npz", allow_pickle=True)
         labels, signers = d["labels"], d["signers"]
         _, va = split(labels, 0.2, 7, signers if (signers >= 0).all() else None)
-        idx = np.floor(np.linspace(0, T_IN - 1, T) + 0.5).astype(int)
+        idx = np.floor(np.linspace(0, T_IN - 1, frames) + 0.5).astype(int)
         dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         ens.to(dev)
         t1 = t5 = 0
@@ -99,7 +102,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     torch.save({"members": [str(Path(f).resolve().relative_to(ROOT)) for f in args.members],
                 "classes": cks[0]["classes"]}, out / "model.pt")
-    dummy = (torch.zeros(1, T, P, 2), torch.ones(1, T, P))
+    dummy = (torch.zeros(1, frames, P, 2), torch.ones(1, frames, P))
     torch.onnx.export(ens, dummy, out / "model.onnx", input_names=["points", "mask"],
                       output_names=["logits", "embedding"], opset_version=17, dynamo=False)
     (out / "model.json").write_text(json.dumps({**first, "version": time.strftime("%Y%m%d-%H%M"), "metrics": metrics}))
