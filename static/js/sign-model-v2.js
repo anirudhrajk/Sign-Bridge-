@@ -14,7 +14,16 @@
     static async create(base, manifest) {
       ort.env.wasm.wasmPaths = '/static/vendor/onnxruntime/';
       ort.env.wasm.numThreads = 1;   // works without cross-origin isolation, on every browser
-      const session = await ort.InferenceSession.create(`${base}/model.onnx`, { executionProviders: ['wasm'] });
+      // Run the model in a background worker, so reading a sign never freezes hand tracking.
+      ort.env.wasm.proxy = true;
+      let session;
+      try {
+        session = await ort.InferenceSession.create(`${base}/model.onnx`, { executionProviders: ['wasm'] });
+      } catch (e) {
+        console.warn('Sign model worker unavailable, running on the page instead', e);
+        ort.env.wasm.proxy = false;
+        session = await ort.InferenceSession.create(`${base}/model.onnx`, { executionProviders: ['wasm'] });
+      }
       return new SignModelV2(manifest, session);
     }
 
@@ -24,6 +33,7 @@
       this.T = m.frames; this.P = m.points;
       this.face = [...m.lips, ...m.eye_r, ...m.eye_l, ...m.nose];
       this.custom = [];
+      this.queue = Promise.resolve();   // one model run at a time
       this.format = 2;
       this.wrists = [9, 30];
     }
@@ -67,10 +77,12 @@
           x[(t * P + p) * 2] = q[0]; x[(t * P + p) * 2 + 1] = q[1]; m[t * P + p] = 1;
         }
       }
-      const out = await this.session.run({
+      const job = this.queue.then(() => this.session.run({
         points: new ort.Tensor('float32', x, [1, T, P, 2]),
         mask: new ort.Tensor('float32', m, [1, T, P]),
-      });
+      }));
+      this.queue = job.catch(() => {});
+      const out = await job;
       const logits = out.logits.data, emb = Float32Array.from(out.embedding.data);
       let hi = -Infinity;
       for (const v of logits) if (v > hi) hi = v;

@@ -24,8 +24,8 @@ def even(n, k):
     return np.floor(np.linspace(0, n - 1, k) + 0.5).astype(int)
 
 
-def to_inputs(seq48):
-    s = np.asarray(seq48, dtype=np.float32)[even(T_IN, T)]
+def to_inputs(seq48, t=T):
+    s = np.asarray(seq48, dtype=np.float32)[even(T_IN, t)]
     m = np.isfinite(s[..., 0]).astype(np.float32)
     return np.nan_to_num(s, nan=0.0)[None], m[None]
 
@@ -105,7 +105,7 @@ def main():
     # parity: ONNX vs PyTorch on a few recordings
     diffs = []
     for i in va[:8]:
-        x, mk = to_inputs(X[i])
+        x, mk = to_inputs(X[i], m["frames"])
         a = sess.run(None, {"points": x, "mask": mk})[0]
         with torch.no_grad():
             b = exp(torch.from_numpy(x), torch.from_numpy(mk))[0].numpy()
@@ -128,7 +128,7 @@ def main():
         r = np.random.default_rng(5)
         t1 = t3 = 0
         for i in va:
-            x, mk = to_inputs(fn(np.asarray(X[i], dtype=np.float32), r))
+            x, mk = to_inputs(fn(np.asarray(X[i], dtype=np.float32), r), m["frames"])
             p = sess.run(None, {"points": x.astype(np.float32), "mask": mk})[0][0]
             o = np.argsort(-p)
             t1 += o[0] == labels[i]

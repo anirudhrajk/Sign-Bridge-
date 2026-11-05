@@ -28,6 +28,9 @@
   let practice = null;        // {name, label} after "show me how"
   const TEACH_COUNT = 5;
   let fpsT = performance.now(), fpsN = 0;
+  let lastStatus = '';
+  // Only touch the page when the message changes (this runs for every camera frame).
+  const say = text => { if (text !== lastStatus) { status.textContent = text; lastStatus = text; } };
 
   // ---------- model ----------
   const lang = document.getElementById('translator').dataset.lang || 'isl';
@@ -57,11 +60,13 @@
   // ---------- camera ----------
   async function start() {
     startBtn.disabled = true;
-    status.textContent = 'Starting camera…';
+    say('Starting camera…');
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { width: 960, height: 720, facingMode: 'user' }, audio: false });
+      // 640x480 is all the tracker needs; bigger frames only cost time on phones.
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 }, facingMode: 'user' }, audio: false });
     } catch (e) {
-      status.textContent = 'Camera blocked';
+      say('Camera blocked');
       SignBridge.toast('Allow camera access in your browser to sign.');
       startBtn.disabled = false;
       return;
@@ -69,7 +74,7 @@
     video.srcObject = stream;
     await video.play();
     if (!holistic) {
-      status.textContent = 'Loading hand tracking (first time takes a few seconds)…';
+      say('Loading hand tracking (first time takes a few seconds)…');
       holistic = new Holistic({ locateFile: f => `/static/vendor/holistic/${f}` });
       holistic.setOptions({ modelComplexity: 0, smoothLandmarks: true, refineFaceLandmarks: false,
                             minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
@@ -82,6 +87,17 @@
     loop();
   }
 
+  // Track each new camera frame once. requestVideoFrameCallback fires per camera frame, so a
+  // 60 Hz screen does not send the same picture twice (which only heats a phone and slows it down).
+  // A 50 ms timer takes over if the browser stops reporting frames, so tracking never stalls.
+  const hasRVFC = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
+  function perFrame(cb) {
+    if (!hasRVFC) { requestAnimationFrame(cb); return; }
+    let done = false, id = 0;
+    const go = () => { if (done) return; done = true; clearTimeout(timer); video.cancelVideoFrameCallback?.(id); cb(); };
+    const timer = setTimeout(go, 50);
+    id = video.requestVideoFrameCallback(go);
+  }
   async function loop() {
     if (!running) return;
     if (!busy && video.readyState >= 2) {
@@ -89,7 +105,7 @@
       try { await holistic.send({ image: video }); } catch (e) { console.error(e); }
       busy = false;
     }
-    requestAnimationFrame(loop);
+    perFrame(loop);
   }
 
   function stop() {
@@ -98,7 +114,7 @@
     stream = null;
     video.srcObject = null;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    status.textContent = 'Camera off';
+    say('Camera off');
     empty.hidden = false;
     meter.hidden = true;
     startBtn.disabled = false;
@@ -111,15 +127,15 @@
   function onResults(res) {
     if (!running) return;
     draw(res);
-    if (!model) { status.textContent = 'Loading signs…'; return; }
+    if (!model) { say('Loading signs…'); return; }
     const frame = model.toPoints(res);
     updateCheck(res, frame);
     recent.push(frame);
     if (recent.length > 90) recent.shift();
-    if (!model) { status.textContent = 'Loading signs…'; return; }
+    if (!model) { say('Loading signs…'); return; }
 
     const hands = model.hasHand(frame);
-    if (!res.poseLandmarks) status.textContent = 'Move back so your shoulders are in view';
+    if (!res.poseLandmarks) say('Move back so your shoulders are in view');
 
     const now = (res.time ?? performance.now());
     const dt = lastT ? Math.min(0.25, (now - lastT) / 1000) : 0;
@@ -130,7 +146,7 @@
       segment.push(frame);
       gapSince = 0;
       if (dt > 0 && motion / dt > STILL_SPEED) { stillSince = now; moved += motion; }
-      if (res.poseLandmarks) status.textContent = 'Reading your sign…';
+      if (res.poseLandmarks) say('Reading your sign…');
       meter.hidden = false;
       meter.firstElementChild.style.width = `${Math.min(100, ((now - segStart) / 1800) * 100)}%`;
       // A held pause after real movement ends the sign.
@@ -140,7 +156,7 @@
       if (!gapSince) gapSince = now;
       if (now - gapSince >= END_GAP_MS) finish();
     } else if (res.poseLandmarks) {
-      status.textContent = 'Ready: raise your hands to sign';
+      say('Ready: raise your hands to sign');
       meter.hidden = true;
     }
   }
@@ -297,7 +313,7 @@
       fpsT = now; fpsN = 0;
     }
     const ls = res.poseLandmarks?.[11], rs = res.poseLandmarks?.[12];
-    if (ls && rs && Math.abs(ls.x - rs.x) > 0.6) status.textContent = 'Move back a little so your hands stay in view';
+    if (ls && rs && Math.abs(ls.x - rs.x) > 0.6) say('Move back a little so your hands stay in view');
   }
 
   // ---------- taught signs ----------
@@ -428,9 +444,15 @@
   const ARM_LINKS = [[11,12],[11,13],[13,15],[12,14],[14,16]];
 
   function draw(res) {
-    if (canvas.width !== video.videoWidth) { canvas.width = video.videoWidth; canvas.height = video.videoHeight; }
+    const img = res.image;
+    const iw = img?.width || video.videoWidth, ih = img?.height || video.videoHeight;
+    if (canvas.width !== iw || canvas.height !== ih) { canvas.width = iw; canvas.height = ih; }
     const W = canvas.width, H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
+    if (img) {
+      // Draw the exact frame the landmarks came from (over the live video, which stays the
+      // source), so the lines never trail behind the hands.
+      ctx.drawImage(img, 0, 0, W, H);
+    } else ctx.clearRect(0, 0, W, H);
     ctx.lineCap = 'round';
     if (res.poseLandmarks) {
       ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 3;
