@@ -72,7 +72,8 @@ def main():
     first = json.loads((Path(args.members[0]) / "model.json").read_text())
 
     if args.reported:
-        metrics = {**json.loads(Path(args.reported).read_text())["metrics"], "trained_on_all_data": True}
+        metrics = {**json.loads(Path(args.reported).read_text())["metrics"], "trained_on_all_data": True,
+                   "train_samples": first["metrics"]["train_samples"]}
     else:
         d = np.load(ROOT / "data" / "cache_v2" / f"{args.lang}.npz", allow_pickle=True)
         labels, signers = d["labels"], d["signers"]
