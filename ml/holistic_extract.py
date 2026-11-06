@@ -5,7 +5,7 @@ opencv-python-headless`), because mediapipe pins its own numpy/protobuf:
 
   data/venv_mp/Scripts/python ml/holistic_extract.py data/asl_citizen --parts 6
 
-Uses the same settings as static/js/camera.js (model complexity 0, smoothing on) and gives each
+Uses the app's settings (static/js/camera.js: smoothing on; --complexity 1 for its full tracker) and gives each
 hand to the arm it is attached to, like static/js/sign-model-v2.js, so the points match what the
 app sees. Large videos are scaled to at most 960 px first (the app's camera gives 640x480).
 

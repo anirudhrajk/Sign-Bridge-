@@ -16,11 +16,12 @@ transformer, repeated twice (`ml/train_v2.py`).
 
 | Test (none of these signers are in training) | Top-1 | Top-5 | Words the app adds by itself (>=70% sure) |
 |---|---|---|---|
-| **Webcam**: ASL Citizen, 11 Deaf/hard-of-hearing signers, 2,089 videos | **75.8%** | **90.3%** | 69% of signs, 91.5% of them right |
+| **Webcam**: ASL Citizen, 11 Deaf/hard-of-hearing signers, 2,089 videos | **76.1%** | **90.5%** | 71% of signs, 91.4% of them right |
 | **Phone**: PopSign, 3 held-out signers, 1,316 videos (tested recipe) | 90.7% | 97.2% | 86% of signs, 97.2% right |
 | Kaggle/Google ISLR, 4 held-out signers (tested recipe, sample of 4,075) | 68.2% | | |
 
-Progress on the webcam test: old v1 model not measured, first v2 pair 73.0%, now 75.8%.
+Progress on the webcam test: old v1 model not measured, first v2 pair 73.0%, then 75.8%, and 76.1% with
+MediaPipe's full tracker, which the app now uses (a device under 10 tracked fps drops to lite by itself).
 On the Kaggle test the old v1 model scored 55.8% and the first v2 pair 64.2%.
 The browser pipeline was checked against Python on 199 of the webcam videos: 75.9% vs 76.5%.
 Every webcam signer scores 71-81%. A slow phone (10 fps) loses about 3.5 points.
@@ -41,6 +42,10 @@ What the shipped ASL model is:
 Tried and not used (measured, not guessed): averaging mirrored/re-timed copies at test time
 (+0.1 points), 48 frames instead of 32 (no gain), extra smoothing of the points (-1.4 points), the
 newer MediaPipe Tasks tracker (same speed on a laptop: 51 vs 55 ms per frame).
+
+Camera size and tracker on unseen signers: full tracker 76.1% vs lite 75.8% on webcams; on 400 phone
+videos 89.5-90.5% across 640 to 1920 px, lite or full, all within noise. Tracking takes 25-28 ms a frame
+on the lite tracker and 32-35 ms on the full one at any of those sizes, on a laptop CPU.
 
 ### ISL
 
