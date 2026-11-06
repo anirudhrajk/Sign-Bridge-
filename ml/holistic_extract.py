@@ -28,7 +28,9 @@ EYE_R = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161,
 EYE_L = [263, 249, 390, 373, 374, 380, 381, 382, 362, 398, 384, 385, 386, 387, 388, 466]
 NOSE = [1, 2, 98, 327]
 FACE = LIPS + EYE_R + EYE_L + NOSE
+VIDEOS = ""
 MAX_SIDE = 960
+COMPLEXITY = 0
 
 
 def points(res):
@@ -61,7 +63,7 @@ def points(res):
 
 
 def one(path, mp, cv2, step=1, smooth=True):
-    holistic = mp.solutions.holistic.Holistic(model_complexity=0, smooth_landmarks=smooth,
+    holistic = mp.solutions.holistic.Holistic(model_complexity=COMPLEXITY, smooth_landmarks=smooth,
                                               refine_face_landmarks=False,
                                               min_detection_confidence=0.5, min_tracking_confidence=0.5)
     cap = cv2.VideoCapture(str(path))
@@ -103,7 +105,7 @@ def run_part(folder, k, n, step=1, smooth=True):
     import cv2
     import mediapipe as mp
     folder = Path(folder)
-    vids = sorted((folder / "videos").glob("*.mp4"))
+    vids = sorted(Path(VIDEOS or folder / "videos").glob("*.mp4"))
     mine = vids[k::n]
     path = folder / f"landmarks_p{k}.npz"
     done = load(folder)
@@ -131,16 +133,22 @@ def main():
     ap.add_argument("--part", type=int, default=-1, help="(internal) run one part")
     ap.add_argument("--step", type=int, default=1, help="track every Nth frame (2 = 15 fps from 30)")
     ap.add_argument("--no-smooth", action="store_true", help="turn off the tracker's landmark smoothing")
+    ap.add_argument("--complexity", type=int, default=0, help="tracker model: 0 lite, 1 full")
+    ap.add_argument("--max-side", type=int, default=960, help="scale frames down to this many pixels at most")
+    ap.add_argument("--videos", default="", help="folder of videos (default <folder>/videos)")
     args = ap.parse_args()
+    global COMPLEXITY, MAX_SIDE, VIDEOS
+    COMPLEXITY, MAX_SIDE, VIDEOS = args.complexity, args.max_side, args.videos
     if args.part >= 0:
         run_part(args.folder, args.part, args.parts, args.step, not args.no_smooth)
         return
     procs = [subprocess.Popen([sys.executable, __file__, args.folder, "--parts", str(args.parts), "--part", str(k),
-                               "--step", str(args.step)] + (["--no-smooth"] if args.no_smooth else []))
+                               "--step", str(args.step), "--complexity", str(args.complexity),
+                               "--max-side", str(args.max_side), "--videos", args.videos] + (["--no-smooth"] if args.no_smooth else []))
              for k in range(args.parts)]
     codes = [p.wait() for p in procs]
     total = len(load(args.folder))
-    vids = len(list((Path(args.folder) / "videos").glob("*.mp4")))
+    vids = len(list(Path(args.videos or Path(args.folder) / "videos").glob("*.mp4")))
     print(f"done: {total}/{vids} videos extracted, exit codes {codes}")
     (Path(args.folder) / "extract_status.json").write_text(json.dumps({"extracted": total, "videos": vids}))
 

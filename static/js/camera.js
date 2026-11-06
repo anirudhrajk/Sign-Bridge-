@@ -27,7 +27,7 @@
   let teach = null;           // {label, done} while recording examples of a new sign
   let practice = null;        // {name, label} after "show me how"
   const TEACH_COUNT = 5;
-  let fpsT = performance.now(), fpsN = 0;
+  let fpsT = performance.now(), fpsN = 0, cameraFps = 0;
   let lastStatus = '';
   // Only touch the page when the message changes (this runs for every camera frame).
   const say = text => { if (text !== lastStatus) { status.textContent = text; lastStatus = text; } };
@@ -62,9 +62,11 @@
     startBtn.disabled = true;
     say('Starting camera…');
     try {
-      // 640x480 is all the tracker needs; bigger frames only cost time on phones.
+      // 1280x720 at up to 60 fps; the browser uses the closest the camera offers.
+      // Frame size hardly changes tracking time (25 ms at 640, 28 ms at 1920).
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 }, facingMode: 'user' }, audio: false });
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 }, facingMode: 'user' }, audio: false });
+      cameraFps = Math.round(stream.getVideoTracks()[0]?.getSettings?.().frameRate || 0);
     } catch (e) {
       say('Camera blocked');
       SignBridge.toast('Allow camera access in your browser to sign.');
@@ -309,7 +311,7 @@
     const now = performance.now();
     if (now - fpsT > 1000) {
       const fps = Math.round(fpsN * 1000 / (now - fpsT));
-      check.querySelector('[data-fps]').textContent = `${fps} fps${fps < 10 ? ' · slow device: sign a little slower' : ''}`;
+      check.querySelector('[data-fps]').textContent = `${fps} fps tracked${cameraFps ? ` · camera ${cameraFps} fps` : ''}${fps < 10 ? ' · slow device: sign a little slower' : ''}`;
       fpsT = now; fpsN = 0;
     }
     const ls = res.poseLandmarks?.[11], rs = res.poseLandmarks?.[12];

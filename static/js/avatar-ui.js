@@ -11,11 +11,9 @@
     const loading = el.querySelector('[data-avatar-loading]');
     const replay = el.querySelector('[data-avatar-replay]');
     const speed = el.querySelector('[data-avatar-speed]');
-    const tone = el.querySelector('[data-avatar-tone]');
     let avatar = null, planner = null, lastText = '', pending = null, chips = [];
 
     speed.value = pref('sb-avatar-speed', '0.85');
-    tone.value = pref('sb-avatar-tone', 'warm');
 
     function renderCaption(plan) {
       chips = plan.map(p => {
@@ -49,9 +47,9 @@
       avatar.play(plan);
     };
 
-    getPack(el.dataset.lang).then(pack => {
-      avatar = new SignAvatar(canvas, pack, {
-        tone: tone.value, speed: Number(speed.value),
+    getPack(el.dataset.lang).then(async pack => {
+      avatar = await SignAvatar.create(canvas, pack, {
+        speed: Number(speed.value),
         onWord: i => chips.forEach((c, j) => c.classList.toggle('is-current', j === i)),
       });
       planner = new SignPlanner(pack.manifest.clips);
@@ -63,6 +61,5 @@
 
     replay.addEventListener('click', () => lastText && el.say(lastText));
     speed.addEventListener('change', () => { save('sb-avatar-speed', speed.value); if (avatar) avatar.speed = Number(speed.value); });
-    tone.addEventListener('change', () => { save('sb-avatar-tone', tone.value); avatar?.setTone(tone.value); });
   });
 })();
