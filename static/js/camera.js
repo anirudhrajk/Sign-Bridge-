@@ -28,6 +28,8 @@
   let practice = null;        // {name, label} after "show me how"
   const TEACH_COUNT = 5;
   let fpsT = performance.now(), fpsN = 0, cameraFps = 0;
+  let tracker = 1, slowSeconds = 0;   // 1 full tracker, 0 lite
+  const SLOW_FPS = 10, SLOW_FOR = 4;  // this slow for this many seconds: drop to the lite tracker
   let lastStatus = '';
   // Only touch the page when the message changes (this runs for every camera frame).
   const say = text => { if (text !== lastStatus) { status.textContent = text; lastStatus = text; } };
@@ -78,7 +80,7 @@
     if (!holistic) {
       say('Loading hand tracking (first time takes a few seconds)…');
       holistic = new Holistic({ locateFile: f => `/static/vendor/holistic/${f}` });
-      holistic.setOptions({ modelComplexity: 0, smoothLandmarks: true, refineFaceLandmarks: false,
+      holistic.setOptions({ modelComplexity: tracker, smoothLandmarks: true, refineFaceLandmarks: false,
                             minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
       holistic.onResults(onResults);
     }
@@ -313,6 +315,12 @@
       const fps = Math.round(fpsN * 1000 / (now - fpsT));
       check.querySelector('[data-fps]').textContent = `${fps} fps tracked${cameraFps ? ` · camera ${cameraFps} fps` : ''}${fps < 10 ? ' · slow device: sign a little slower' : ''}`;
       fpsT = now; fpsN = 0;
+      // A phone that cannot keep up gets the lighter tracker, so the camera never lags behind the signer.
+      slowSeconds = fps < SLOW_FPS ? slowSeconds + 1 : 0;
+      if (tracker === 1 && slowSeconds >= SLOW_FOR) {
+        tracker = 0; slowSeconds = 0;
+        holistic.setOptions({ modelComplexity: 0 });
+      }
     }
     const ls = res.poseLandmarks?.[11], rs = res.poseLandmarks?.[12];
     if (ls && rs && Math.abs(ls.x - rs.x) > 0.6) say('Move back a little so your hands stay in view');

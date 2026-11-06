@@ -33,7 +33,7 @@ def landing():
 
 # ---------- offline support ----------
 OFFLINE_PAGES = ["/together", "/offline", "/"]
-SKIP_FROM_PRECACHE = {"README.md", "README.txt", "pose_landmark_full.tflite", "sw.js"}
+SKIP_FROM_PRECACHE = {"README.md", "README.txt", "sw.js"}
 
 
 def _precache_files():
