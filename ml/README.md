@@ -16,30 +16,36 @@ transformer, repeated twice (`ml/train_v2.py`).
 
 | Test (none of these signers are in training) | Top-1 | Top-5 | Words the app adds by itself (>=70% sure) |
 |---|---|---|---|
-| **Webcam**: ASL Citizen, 11 Deaf/hard-of-hearing signers, 2,089 videos | **76.1%** | **90.5%** | 71% of signs, 91.4% of them right |
-| **Phone**: PopSign, 3 held-out signers, 1,316 videos (tested recipe) | 90.7% | 97.2% | 86% of signs, 97.2% right |
-| Kaggle/Google ISLR, 4 held-out signers (tested recipe, sample of 4,075) | 68.2% | | |
+| **Webcam**: ASL Citizen, 11 Deaf/hard-of-hearing signers, 2,089 videos | **77.5%** | **90.8%** | 73% of signs, 92.2% of them right |
+| **Phone**: PopSign, 3 held-out signers, 1,316 videos (tested pair) | 90.5% | 97.7% | |
+| Kaggle/Google ISLR, 4 held-out signers (tested pair, sample of 4,075) | 70.2% | | |
 
-Progress on the webcam test: old v1 model not measured, first v2 pair 73.0%, then 75.8%, and 76.1% with
-MediaPipe's full tracker, which the app now uses (a device under 10 tracked fps drops to lite by itself).
+Progress on the webcam test: old v1 model not measured, first v2 pair 73.0%, then 75.8%, 76.1% with
+MediaPipe's full tracker, which the app now uses (a device under 10 tracked fps drops to lite by itself),
+and 77.5% with three networks and 40 signers.
 On the Kaggle test the old v1 model scored 55.8% and the first v2 pair 64.2%.
 The browser pipeline was checked against Python on 199 of the webcam videos: 75.9% vs 76.5%.
-Every webcam signer scores 71-81%. A slow phone (10 fps) loses about 3.5 points.
+Every webcam signer scores 73-82%. A slow phone (10 fps) loses about 3.5 points.
 
 What the shipped ASL model is:
-- **Data**: Kaggle/Google ISLR (94,477 recordings, 21 signers) plus PopSign ASL v1.0
-  (11,896 recordings from its 8 test-set signers, CC BY 4.0), 106,373 recordings from 29 signers.
+- **Data**: Kaggle/Google ISLR (94,477 recordings, 21 signers) plus PopSign ASL v1.0 (CC BY 4.0):
+  8 test-set signers and 11 training signers not in the Kaggle data, found by testing. 113,372 recordings
+  from about 40 signers.
 - **Recipe** (from the top Kaggle solutions, each kept only because it helped on unseen signers):
   hand-shape distance features (`--geo`), the face swapped in from another recording of the same
   sign (`--face-swap`), manifold mixup, label smoothing 0.3, weight averaging (EMA), plus the
   webcam, mirror, camera and tracker augmentations.
-- **Two networks** (192 and 256 wide) averaged in one file (`ml/ensemble_v2.py`).
-- **Calibrated** (`ml/calibrate.py`, temperature 0.868 fitted on held-out signers), so "70% sure"
+- **Three networks** (192, 256 and a second 192 wide) averaged in one file (`ml/ensemble_v2.py`).
+- **Calibrated** (`ml/calibrate.py`, temperature 0.834 fitted on held-out signers), so "70% sure"
   means what it says.
-- **Full precision** (32-bit weights, 20.0 MB). `ml/shrink_onnx.py` can store them at half size
+- **Full precision** (32-bit weights, 27.4 MB). `ml/shrink_onnx.py` can store them at half size
   (10.2 MB, same answers in tests) but the shipped files are kept full size.
 
-Tried and not used (measured, not guessed): averaging mirrored/re-timed copies at test time
+- **Teach a sign** uses `teach_bias` 17 for ASL (`model.json`): on held-out signers, 3 examples each, taught signs
+  are recognised 67.5% of the time with 2.5% false fires (56.2% and 0.6% at the old setting).
+
+Tried and not used (measured, not guessed): AWP (Kaggle +1.3, phone +0.6, webcam -0.4, at twice the training
+time), averaging mirrored/re-timed copies at test time
 (+0.1 points), 48 frames instead of 32 (no gain), extra smoothing of the points (-1.4 points), the
 newer MediaPipe Tasks tracker (same speed on a laptop: 51 vs 55 ms per frame).
 
