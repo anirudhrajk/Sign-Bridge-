@@ -35,6 +35,7 @@
       this.custom = [];
       this.queue = Promise.resolve();   // one model run at a time
       this.format = 2;
+      this.teachBias = m.teach_bias ?? 19;   // how easily a taught sign beats a built-in word
       this.wrists = [9, 30];
     }
 
@@ -104,7 +105,7 @@
         for (let j = 0; j < emb.length; j++) sim += emb[j] * ex.emb[j];
         if (!best.has(ex.label) || sim > best.get(ex.label)) best.set(ex.label, sim);
       }
-      for (const [label, sim] of best) scores.push({ index: -1, s: 20 * sim - 19, name: 'taught:' + label, label, custom: true, sim });
+      for (const [label, sim] of best) scores.push({ index: -1, s: 20 * sim - this.teachBias, name: 'taught:' + label, label, custom: true, sim });
       const hi = Math.max(...scores.map(x => x.s));
       let z = 0;
       for (const x of scores) z += Math.exp(x.s - hi);
