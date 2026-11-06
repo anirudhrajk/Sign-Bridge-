@@ -23,3 +23,8 @@ static/uploads/
 # OS Files
 .DS_Store
 Thumbs.dbdata/models_v1_backup/
+
+# ASL Citizen clips for local benchmarks only (research licence: never commit)
+static/_bench/
+# Tasks Vision files while they are being evaluated
+static/vendor/tasks-vision/
