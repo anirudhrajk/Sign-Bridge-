@@ -35,7 +35,8 @@ What the shipped ASL model is:
 - **Two networks** (192 and 256 wide) averaged in one file (`ml/ensemble_v2.py`).
 - **Calibrated** (`ml/calibrate.py`, temperature 0.868 fitted on held-out signers), so "70% sure"
   means what it says.
-- **Half-size weights** (`ml/shrink_onnx.py`): 10.2 MB instead of 20 MB, same answers.
+- **Full precision** (32-bit weights, 20.0 MB). `ml/shrink_onnx.py` can store them at half size
+  (10.2 MB, same answers in tests) but the shipped files are kept full size.
 
 Tried and not used (measured, not guessed): averaging mirrored/re-timed copies at test time
 (+0.1 points), 48 frames instead of 32 (no gain), extra smoothing of the points (-1.4 points), the
@@ -48,7 +49,7 @@ newer MediaPipe Tasks tracker (same speed on a laptop: 51 vs 55 ms per frame).
 | INCLUDE, 4,284 recordings | 262 | 98.1% | 99.2% | random 20% (signers may repeat) |
 
 Every simulated webcam condition is at least 95.8%. The ASL recipe scored 97.1% here, so ISL keeps
-its model (now stored at half size, 3.6 MB, same answers).
+its model (7.1 MB, full precision).
 
 ## Test sets
 
@@ -76,7 +77,7 @@ python ml/train_v2.py $R --epochs 120 --all-data --reported data/models_v2/asl_v
 python ml/train_v2.py $R --epochs 120 --dim 256 --drop 0.3 --head-drop 0.5 --all-data --reported data/models_v2/asl_v5b/model.json --out data/models_v2/asl_v5b_all
 python ml/ensemble_v2.py --lang asl --cache asl_plus --members data/models_v2/asl_v5a_all data/models_v2/asl_v5b_all --reported data/models_v2/asl_v5ab/model.json --out data/models_v2/asl_final2
 python ml/calibrate.py data/models_v2/asl_final2 --temperature 0.868
-python ml/shrink_onnx.py data/models_v2/asl_final2/model.onnx --out static/models/asl/model.onnx --check data/cache_v2/asl_plus.npz
+cp data/models_v2/asl_final2/model.onnx data/models_v2/asl_final2/model.json static/models/asl/
 python ml/eval_citizen.py static/models/asl                                              # webcam test
 ```
 
