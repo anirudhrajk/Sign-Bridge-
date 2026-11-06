@@ -1,5 +1,6 @@
-// SignBridge avatar: a drawn signer driven by real recorded sign movements.
+// SignBridge avatar: the 3D signer from the landing page, driven by real recorded sign movements.
 // Clips come from ml/build_sign_clips.py (points in shoulder widths from the shoulder centre).
+// A device without WebGL gets the drawn 2D signer instead.
 (() => {
   const FINGERS = [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16], [17, 18, 19, 20]];
   const PALM = [0, 1, 2, 5, 9, 13, 17];
@@ -18,9 +19,33 @@
       return { manifest: m, data: new Int16Array(buf) };
     }
 
-    constructor(canvas, pack, opts = {}) {
+    /** The 3D model, fetched once however many signers a page has. */
+    static model() {
+      return (SignAvatar.glb ||= fetch('/static/landing/avatar/signer.glb').then(r => {
+        if (!r.ok) throw new Error('signer.glb');
+        return r.arrayBuffer();
+      }));
+    }
+
+    static async create(canvas, pack, opts = {}) {
+      let rig = null;
+      try {
+        const glb = await SignAvatar.model();
+        rig = await window.SB3D.createRig(canvas, glb.slice(0), pack.manifest, pack.data);
+      } catch (e) {
+        // No WebGL: a canvas that failed to give a 3D context cannot be used for 2D either.
+        console.warn('3D signer unavailable, using the drawn signer', e);
+        const fresh = canvas.cloneNode();
+        canvas.replaceWith(fresh);
+        canvas = fresh;
+      }
+      return new SignAvatar(canvas, pack, opts, rig);
+    }
+
+    constructor(canvas, pack, opts = {}, rig = null) {
       this.canvas = canvas;
-      this.ctx = canvas.getContext('2d');
+      this.rig = rig;
+      this.ctx = rig ? null : canvas.getContext('2d');
       this.m = pack.manifest;
       this.data = pack.data;
       this.N = this.m.frame_size;
@@ -36,8 +61,13 @@
       this.seg = null;
       this.blinkAt = performance.now() + 2000;
       this.t0 = performance.now();
-      this.resize();
-      new ResizeObserver(() => this.resize()).observe(canvas);
+      this.lastDraw = 0;
+      this.onScreen = true;
+      new IntersectionObserver(([e]) => { this.onScreen = e.isIntersecting; }).observe(canvas);
+      if (!rig) {
+        this.resize();
+        new ResizeObserver(() => this.resize()).observe(canvas);
+      }
       this.loop = this.loop.bind(this);
       requestAnimationFrame(this.loop);
     }
@@ -113,9 +143,14 @@
     }
 
     loop(now) {
-      this.update(now);
-      this.draw(now);
       requestAnimationFrame(this.loop);
+      this.update(now);
+      if (!this.onScreen) return;                         // keep the camera tracker's time for itself
+      if (!this.rig) { this.draw(now); return; }
+      if (!this.seg && now - this.lastDraw < 100) return; // waiting for a sign: 10 frames a second is enough
+      this.lastDraw = now;
+      this.rig.apply(this.pose, now);
+      this.rig.render();
     }
 
     // ---------- drawing ----------

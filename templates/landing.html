@@ -48,7 +48,7 @@
     </div>
 
     <figure class="signer" data-rise>
-      <canvas id="signer" data-clips="{{ url_for('static', filename='signs/isl') }}" role="img" aria-label="A skeleton figure performing recorded Indian Sign Language movements"></canvas>
+      <canvas id="signer" data-clips="{{ url_for('static', filename='signs/isl') }}" data-avatar="{{ url_for('static', filename='landing/avatar/signer.glb') }}" role="img" aria-label="A 3D signer performing recorded Indian Sign Language movements"></canvas>
       <figcaption>
         <ol class="gloss" id="gloss" aria-hidden="true"></ol>
         <p class="said said--patient" id="saidPatient">Hello doctor, I am sick.</p>
@@ -127,7 +127,7 @@
   </section>
 
   <section class="team" id="team" hidden>
-    <h2>Meet Team VAAB</h2>
+    <h2>Meet the developers</h2>
     <p class="muted">Select a photo to see each person's role.</p>
     <ul class="people" id="people"></ul>
   </section>
@@ -157,6 +157,7 @@
 <footer class="foot">
   <span>© {{ now().year }} SignBridge</span>
   <span>A communication aid. In an emergency, always alert hospital staff directly.</span>
+  <span>3D character by Ready Player Me, adapted for this project. Sign movements from AI4Bharat INCLUDE.</span>
 </footer>
 
 <nav class="dock" aria-label="Page sections">
@@ -169,6 +170,7 @@
 
 <script src="{{ url_for('static', filename='landing/vendor/gsap.min.js') }}"></script>
 <script src="{{ url_for('static', filename='landing/vendor/ScrollTrigger.min.js') }}"></script>
+<script src="{{ url_for('static', filename='landing/vendor/signer3d.js') }}"></script>
 <script src="{{ url_for('static', filename='landing/team.js') }}"></script>
 <script src="{{ url_for('static', filename='landing/landing.js') }}"></script>
 </body>

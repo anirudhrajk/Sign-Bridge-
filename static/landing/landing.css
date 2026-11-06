@@ -92,7 +92,7 @@ h1 { font-size: clamp(2.7rem, 5.2vw, 5.75rem); line-height: 1.02; letter-spacing
 .lede { max-width: 34rem; margin-top: 28px; font-size: clamp(1.125rem, 1.5vw, 1.3rem); }
 
 .signer { display: flex; flex-direction: column; min-width: 0; }
-.signer canvas { display: block; width: 100%; height: min(56svh, 560px); }
+.signer canvas { display: block; width: 100%; height: min(62svh, 620px); }
 .signer figcaption { min-height: 132px; padding-top: 14px; border-top: 1px solid var(--suture); position: relative; }
 .gloss { display: flex; flex-wrap: wrap; gap: 4px 14px; min-height: 28px; font-size: 1rem; }
 .gloss li { color: #7d928d; transition: color .25s; }
@@ -166,7 +166,7 @@ h1 { font-size: clamp(2.7rem, 5.2vw, 5.75rem); line-height: 1.02; letter-spacing
 /* Team. Card behaviour follows the judges row on CSS Design Awards. */
 .team { padding: clamp(72px, 10vw, 140px) var(--gutter); }
 .team .muted { margin-top: 12px; }
-.people { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(16px, 3vw, 44px); max-width: 1080px; margin-top: 128px; }
+.people { display: grid; grid-template-columns: repeat(4, clamp(116px, 12vw, 164px)); gap: clamp(16px, 2.5vw, 36px); margin-top: 140px; }
 .person { position: relative; }
 .person__photo {
   display: block; width: 100%; aspect-ratio: 1; padding: 0;
@@ -180,13 +180,14 @@ h1 { font-size: clamp(2.7rem, 5.2vw, 5.75rem); line-height: 1.02; letter-spacing
   transition: filter .4s, transform .6s var(--ease);
 }
 .person__tip {
-  position: absolute; left: 50%; bottom: calc(100% + 14px); z-index: 3; width: 258px; margin-left: -129px;
+  position: absolute; left: 0; bottom: calc(100% + 14px); z-index: 3; width: 258px; max-width: calc(100vw - 2 * var(--gutter));
   padding: 14px 16px; background: var(--black); border: 1px solid var(--oximeter); border-radius: 3px;
   opacity: 0; visibility: hidden; transform: translateY(8px);
   transition: opacity .3s, transform .3s var(--ease), visibility .3s;
 }
 .person__tip strong { display: block; color: var(--gauze); font-size: 1.15rem; font-weight: 500; letter-spacing: -.01em; }
 .person__tip span { display: block; color: var(--oximeter); line-height: 1.3; margin-top: 2px; }
+.person:nth-child(n+3) .person__tip { left: auto; right: 0; }
 .person.is-open .person__tip { opacity: 1; visibility: visible; transform: none; }
 .person.is-open .person__photo { box-shadow: 0 0 0 2px var(--black), 0 0 0 4px var(--oximeter); }
 .person.is-open .person__photo img { filter: none; }
@@ -243,14 +244,16 @@ h1 { font-size: clamp(2.7rem, 5.2vw, 5.75rem); line-height: 1.02; letter-spacing
 @media (max-width: 900px) {
   .hero { grid-template-columns: 1fr; padding-top: 88px; }
   h1 { font-size: min(10.4vw, 4.5rem); }
-  .people { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .person__tip { left: 0; margin-left: 0; max-width: calc(100vw - 2 * var(--gutter)); }
-  .person:nth-child(even) .person__tip { left: auto; right: 0; }
   .signer canvas { height: 46svh; }
   .talk__pin, .faq { grid-template-columns: 1fr; }
   .talk__steps li { opacity: 1; }
   .chat { min-height: 0; }
   .dock a { padding: 8px 10px; font-size: .95rem; }
+}
+@media (max-width: 620px) {
+  .people { grid-template-columns: repeat(2, 132px); gap: 20px; }
+  .person:nth-child(n) .person__tip { left: 0; right: auto; }
+  .person:nth-child(even) .person__tip { left: auto; right: 0; }
 }
 @media (max-width: 420px) { .dock { gap: 0; } .dock a { padding: 8px 8px; font-size: .9rem; } }
 

@@ -64,9 +64,10 @@
   const COLORS = { hand: '#4fe6e0', body: '#5d716c', joint: '#eef6f4' };
 
   class Signer {
-    constructor(canvas, manifest, data) {
+    constructor(canvas, manifest, data, rig) {
       this.canvas = canvas;
-      this.ctx = canvas.getContext('2d');
+      this.rig = rig;
+      this.ctx = rig ? null : canvas.getContext('2d');
       this.m = manifest;
       this.data = data;
       this.N = manifest.frame_size;
@@ -75,12 +76,15 @@
       this.pose = this.idle.slice();
       this.trails = [[], []];
       this.dpr = 1;
+      this.pausedAt = null;
       this.running = true;
       this.visible = true;
       this.step = -1;
       this.state = { kind: 'wait', until: performance.now() + 500 };
-      this.resize();
-      new ResizeObserver(() => this.resize()).observe(canvas);
+      if (!rig) {
+        this.resize();
+        new ResizeObserver(() => this.resize()).observe(canvas);
+      }
       new IntersectionObserver(([e]) => { this.visible = e.isIntersecting; }).observe(canvas);
       this.tick = this.tick.bind(this);
       requestAnimationFrame(this.tick);
@@ -138,7 +142,7 @@
           else { this.reset(); this.step = -1; this.advance(now); }
         }
       } else if (s.kind === 'ease') {
-        const t = Math.min(1, (now - s.start) / s.dur);
+        const t = Math.min(1, Math.max(0, (now - s.start) / s.dur));
         const e = t * t * (3 - 2 * t);
         this.pose = this.mix(s.from, s.to, e);
         if (t >= 1) {
@@ -166,12 +170,27 @@
 
     tick(now) {
       requestAnimationFrame(this.tick);
-      if (!this.running || !this.visible) { if (this.running) this.state.start += 16; return; }
+      if (!this.running || !this.visible) {
+        if (this.pausedAt === null) this.pausedAt = now;
+        return;
+      }
+      if (this.pausedAt !== null) {
+        // Slide the timeline forward by exactly the time spent paused.
+        const gap = now - this.pausedAt;
+        if (this.state.start !== undefined) this.state.start += gap;
+        if (this.state.until !== undefined) this.state.until += gap;
+        this.pausedAt = null;
+      }
       this.update(now);
-      this.draw();
+      this.draw(now);
     }
 
-    draw() {
+    draw(now = performance.now()) {
+      if (this.rig) {
+        this.rig.apply(this.pose, now);
+        this.rig.render();
+        return;
+      }
       const { ctx, canvas } = this;
       const W = canvas.width, H = canvas.height, L = this.m.layout, p = this.pose;
       const u = Math.min(W * .3, H * .34), ox = W / 2, oy = H * .44;
@@ -242,6 +261,30 @@
     }
   }
 
+  async function loadAvatar(onProgress) {
+    const canvas = $('#signer');
+    if (!window.SB3D) return null;
+    if (window.SB_AVATAR) {
+      onProgress(1);
+      return Uint8Array.from(atob(window.SB_AVATAR), c => c.charCodeAt(0)).buffer;
+    }
+    const res = await fetch(canvas.dataset.avatar);
+    if (!res.ok) throw new Error('avatar');
+    const total = Number(res.headers.get('content-length')) || 0;
+    if (!res.body || !total) return res.arrayBuffer();
+    const reader = res.body.getReader();
+    const bytes = new Uint8Array(total);
+    let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes.set(value, got);
+      got += value.length;
+      onProgress(got / total);
+    }
+    return bytes.buffer;
+  }
+
   async function loadClips(onProgress) {
     const base = $('#signer').dataset.clips;
     const manifestRes = await fetch(`${base}/clips.json`);
@@ -264,15 +307,26 @@
     return { manifest, data: new Int16Array(bytes.buffer) };
   }
 
-  function startSigner(pack) {
+  async function startSigner(pack, avatar) {
     if (!pack) { $('.signer').hidden = true; return; }
+    let rig = null;
+    if (avatar) {
+      try {
+        rig = await window.SB3D.createRig($('#signer'), avatar, pack.manifest, pack.data);
+      } catch (e) {
+        // No WebGL here: swap in a fresh canvas and fall back to the drawn figure.
+        rig = null;
+        const fresh = $('#signer').cloneNode();
+        $('#signer').replaceWith(fresh);
+      }
+    }
     const gloss = $('#gloss');
     SENTENCE.forEach(([, word]) => {
       const li = document.createElement('li');
       li.textContent = word;
       gloss.append(li);
     });
-    const signer = new Signer($('#signer'), pack.manifest, pack.data);
+    const signer = new Signer($('#signer'), pack.manifest, pack.data, rig);
     const toggle = $('#signerToggle');
     toggle.hidden = false;
     const set = running => {
@@ -419,11 +473,13 @@
       if (hasGsap && !reduce) gsap.to(shown, { value: p * 100, duration: .3, overwrite: true, onUpdate: paint });
     };
 
-    let pack = null;
+    let pack = null, avatar = null;
+    const parts = [0, 0];
+    const part = i => p => { parts[i] = p; progress((parts[0] + parts[1]) / 2); };
     try {
-      pack = await Promise.race([
-        loadClips(progress),
-        new Promise((_, no) => setTimeout(() => no(new Error('timeout')), 9000)),
+      [pack, avatar] = await Promise.race([
+        Promise.all([loadClips(part(0)), loadAvatar(part(1)).catch(() => null)]),
+        new Promise((_, no) => setTimeout(() => no(new Error('timeout')), 15000)),
       ]);
     } catch (e) { pack = null; }
 
@@ -431,7 +487,7 @@
     if (hasGsap && !reduce) {
       await new Promise(done => gsap.to(shown, { value: 100, duration: .35, overwrite: true, onUpdate: paint, onComplete: done }));
     }
-    startSigner(pack);
+    await startSigner(pack, avatar);
     if (hasGsap && !reduce) setupMotion();
     enter();
     if (hasGsap && !reduce) ScrollTrigger.refresh();
