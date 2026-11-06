@@ -10,6 +10,7 @@ Exports static/models/<lang>/model.onnx + model.json, and keeps the v1 files unt
 --install is given.
 """
 import argparse
+import copy
 import json
 import math
 import sys
@@ -30,10 +31,21 @@ from ml.train import LANGS, split  # noqa: E402
 T_IN, T = 48, 32                    # frames stored / frames the model sees
 P = L.N_POINTS
 FEAT = P * 2 + 84 + 80 + P * 2 + 2  # global, hand shapes, lip shape, motion, hand flags = 674
+_IU = torch.triu_indices(21, 21, 1)  # the 210 point pairs of a hand
+GEO = 2 * 210                         # optional: every pairwise distance within each hand
 
 
 # ---------------------------------------------------------------- features (inside the model)
-def features(x, m):
+def hand_geometry(h, on):
+    """(B, T, 21, 2) hand points -> (B, T, 210) distances between every pair, in palm lengths.
+    Distances ignore where the hand is and how it is turned, so they describe the hand shape alone."""
+    d = (h[:, :, :, None] - h[:, :, None, :]).norm(dim=-1)            # (B, T, 21, 21)
+    d = d[:, :, _IU[0].to(h.device), _IU[1].to(h.device)]
+    palm = (h[:, :, 9] - h[:, :, 0]).norm(dim=-1, keepdim=True).clamp(min=1e-4)
+    return d / palm * on
+
+
+def features(x, m, geo=False):
     """x: (B, T, 127, 2) raw image coords (0 where missing), m: (B, T, 127) 1 = present."""
     eps = 1e-4
     ls, rs = x[:, :, 1], x[:, :, 2]
@@ -70,9 +82,13 @@ def features(x, m):
     vel[:, 1:] = (g[:, 1:] - g[:, :-1]) * both
     flags = torch.cat([m[:, :, 9:10], m[:, :, 30:31]], -1)
     B, Tn = x.shape[:2]
-    f = torch.cat([g.reshape(B, Tn, -1), lhl.reshape(B, Tn, -1), rhl.reshape(B, Tn, -1),
-                   lipl.reshape(B, Tn, -1), vel.reshape(B, Tn, -1) * 4, flags], -1)
-    return f.clamp(-10, 10)
+    parts = [g.reshape(B, Tn, -1), lhl.reshape(B, Tn, -1), rhl.reshape(B, Tn, -1),
+             lipl.reshape(B, Tn, -1), vel.reshape(B, Tn, -1) * 4, flags]
+    if geo:
+        lh_all = (m[:, :, L.SL_LH].sum(-1, keepdim=True) == 21).float()
+        rh_all = (m[:, :, L.SL_RH].sum(-1, keepdim=True) == 21).float()
+        parts += [hand_geometry(lh, lh_all), hand_geometry(rh, rh_all)]
+    return torch.cat(parts, -1).clamp(-10, 10)
 
 
 # ---------------------------------------------------------------- model
@@ -118,10 +134,10 @@ class TransBlock(nn.Module):
 
 
 class SignNetV2(nn.Module):
-    def __init__(self, n_classes, d=192, repeats=2, drop=0.2, head_drop=0.4, frames=T):
+    def __init__(self, n_classes, d=192, repeats=2, drop=0.2, head_drop=0.4, frames=T, geo=False):
         super().__init__()
-        self.frames = frames
-        self.stem = nn.Sequential(nn.Linear(FEAT, d), nn.LayerNorm(d))
+        self.frames, self.geo = frames, geo
+        self.stem = nn.Sequential(nn.Linear(FEAT + (GEO if geo else 0), d), nn.LayerNorm(d))
         self.pos = nn.Parameter(torch.zeros(1, frames, d))
         blocks = []
         for _ in range(repeats):
@@ -131,15 +147,18 @@ class SignNetV2(nn.Module):
         self.drop = nn.Dropout(head_drop)
         self.head = nn.Linear(2 * d, n_classes)
 
-    def embed(self, x, m):
-        h = self.stem(features(x, m)) + self.pos
+    def embed(self, x, m, mix=None):
+        h = self.stem(features(x, m, self.geo)) + self.pos
+        if mix is not None:  # manifold mixup: blend this sample with a partner, early in the network
+            idx, lam = mix
+            h = lam * h + (1 - lam) * h[idx]
         for b in self.blocks:
             h = b(h)
         h = self.norm(h)
         return torch.cat([h.mean(1), h.amax(1)], -1)
 
-    def forward(self, x, m):
-        return self.head(self.drop(self.embed(x, m)))
+    def forward(self, x, m, mix=None):
+        return self.head(self.drop(self.embed(x, m, mix)))
 
 
 class Exported(nn.Module):
@@ -222,6 +241,35 @@ def augment(x, m, perm, g, t=T):
     return x * m.unsqueeze(-1), m
 
 
+def face_swap(x, m, X, M, yb, tr_sorted, starts, counts, p, g):
+    """Give some samples the face (lips, eyes, nose) of another recording of the same sign, moved
+    onto this signer's nose and scaled by shoulder width, so the model cannot rely on who signs."""
+    B, dev = x.shape[0], x.device
+    pick = torch.rand(B, device=dev, generator=g) < p
+    if not pick.any():
+        return x, m
+    r = (torch.rand(B, device=dev, generator=g) * counts[yb]).long()
+    partner = tr_sorted[starts[yb] + torch.minimum(r, (counts[yb] - 1).clamp(min=0))]
+    xp, mp = X[partner].float(), M[partner].float()
+
+    def anchor(xx, mm):
+        ok = mm[:, :, 0] * mm[:, :, 1] * mm[:, :, 2]                    # nose + both shoulders
+        n = ok.sum(1).clamp(min=1)
+        nose = (xx[:, :, 0] * ok[..., None]).sum(1) / n[:, None]
+        sw = ((xx[:, :, 1] - xx[:, :, 2]).norm(dim=-1) * ok).sum(1) / n
+        return nose, sw.clamp(min=1e-3), ok.sum(1) > 0
+
+    ns, ss, oks = anchor(x, m)
+    npn, sp, okp = anchor(xp, mp)
+    face = (xp[:, :, 51:] - npn[:, None, None]) * (ss / sp)[:, None, None, None] + ns[:, None, None]
+    use = (pick & oks & okp)[:, None, None]
+    x = x.clone()
+    m = m.clone()
+    x[:, :, 51:] = torch.where(use[..., None], face * mp[:, :, 51:, None], x[:, :, 51:])
+    m[:, :, 51:] = torch.where(use, mp[:, :, 51:], m[:, :, 51:])
+    return x, m
+
+
 def evenly(x, m, t=T):
     idx = torch.floor(torch.linspace(0, T_IN - 1, t, device=x.device) + 0.5).long()
     return x[:, idx] * m[:, idx].unsqueeze(-1), m[:, idx]
@@ -274,6 +322,13 @@ def main():
                     help="adversarial weight perturbation step (0 = off; 0.2 is typical), against overfitting")
     ap.add_argument("--awp-eps", type=float, default=0.01, help="largest AWP change, relative to each weight")
     ap.add_argument("--awp-start", type=float, default=0.15, help="share of epochs before AWP starts")
+    ap.add_argument("--geo", action="store_true", help="add hand-shape distance features")
+    ap.add_argument("--smooth", type=float, default=0.1, help="label smoothing")
+    ap.add_argument("--mixup", type=float, default=0.0, help="share of batches with manifold mixup")
+    ap.add_argument("--face-swap", type=float, default=0.0,
+                    help="share of samples whose face comes from another recording of the same sign")
+    ap.add_argument("--ema", type=float, default=0.0, help="weight averaging decay (e.g. 0.999); 0 = off")
+    ap.add_argument("--cache", default="", help="cache name in data/cache_v2 (default: --lang)")
     ap.add_argument("--batch", type=int, default=256)
     ap.add_argument("--lr", type=float, default=1.5e-3)
     ap.add_argument("--eval-every", type=int, default=5)
@@ -286,11 +341,14 @@ def main():
 
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.manual_seed(args.seed)
-    d = np.load(ROOT / "data" / "cache_v2" / f"{args.lang}.npz", allow_pickle=True)
+    d = np.load(ROOT / "data" / "cache_v2" / f"{args.cache or args.lang}.npz", allow_pickle=True)
     Xn, labels = d["X"], d["labels"]
     classes, cats = d["classes"].tolist(), d["categories"].tolist()
     signers = d["signers"]
-    tr, va = split(labels, 0.2, args.seed, signers if (signers >= 0).all() else None)
+    if "split" in d.files:  # the cache says which recordings are held out (prepare_v2.py --extra)
+        tr, va = np.flatnonzero(d["split"] == 0), np.flatnonzero(d["split"] == 1)
+    else:
+        tr, va = split(labels, 0.2, args.seed, signers if (signers >= 0).all() else None)
     if args.all_data:
         tr = np.arange(len(labels))
     Mn = np.isfinite(Xn[..., 0])
@@ -304,7 +362,12 @@ def main():
           f"{len(classes)} signs, device {dev}", flush=True)
 
     model = SignNetV2(len(classes), d=args.dim, repeats=args.repeats, drop=args.drop, head_drop=args.head_drop,
-                      frames=args.frames).to(dev)
+                      frames=args.frames, geo=args.geo).to(dev)
+    ema = copy.deepcopy(model).eval() if args.ema else None
+    # partners of the same sign, for --face-swap
+    tr_sorted = tr_t[torch.argsort(y[tr_t])]
+    counts = torch.bincount(y[tr_t], minlength=len(classes))
+    starts = torch.cumsum(counts, 0) - counts
     print(f"parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f} M", flush=True)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.05)
     steps = args.epochs * math.ceil(len(tr) / args.batch)
@@ -318,16 +381,26 @@ def main():
         total = 0.0
         for i in range(0, len(order), args.batch):
             b = order[i:i + args.batch]
-            xb, mb = augment(X[b].float(), M[b].float(), perm, g, args.frames)
+            xr, mr = X[b].float(), M[b].float()
+            if args.face_swap:
+                xr, mr = face_swap(xr, mr, X, M, y[b], tr_sorted, starts, counts, args.face_swap, g)
+            xb, mb = augment(xr, mr, perm, g, args.frames)
+            mix = None
+            if args.mixup and torch.rand(1, device=dev, generator=g).item() < args.mixup:
+                lam = float(np.random.beta(0.4, 0.4))
+                mix = (torch.randperm(len(b), device=dev, generator=g), max(lam, 1 - lam))
             with torch.autocast("cuda", dtype=torch.float16, enabled=dev.type == "cuda"):
-                loss = F.cross_entropy(model(xb, mb), y[b], label_smoothing=0.1)
+                out_b = model(xb, mb, mix)
+                loss = F.cross_entropy(out_b, y[b], label_smoothing=args.smooth)
+                if mix is not None:
+                    loss = mix[1] * loss + (1 - mix[1]) * F.cross_entropy(out_b, y[b][mix[0]], label_smoothing=args.smooth)
             opt.zero_grad(set_to_none=True)
             scaler.scale(loss).backward()
             if args.awp and epoch >= args.awp_start * args.epochs:
                 saved = awp_perturb(model, args.awp, args.awp_eps)
                 opt.zero_grad(set_to_none=True)
                 with torch.autocast("cuda", dtype=torch.float16, enabled=dev.type == "cuda"):
-                    adv = F.cross_entropy(model(xb, mb), y[b], label_smoothing=0.1)
+                    adv = F.cross_entropy(model(xb, mb), y[b], label_smoothing=args.smooth)
                 scaler.scale(adv).backward()   # gradients at the worst nearby weights
                 for prm, w in saved:
                     prm.data.copy_(w)
@@ -336,13 +409,20 @@ def main():
             scaler.step(opt)
             scaler.update()
             sched.step()
+            if ema is not None:
+                with torch.no_grad():
+                    for pe, pm in zip(ema.parameters(), model.parameters()):
+                        pe.lerp_(pm, 1 - args.ema)
+                    for be, bm in zip(ema.buffers(), model.buffers()):
+                        be.copy_(bm)
             total += loss.item() * len(b)
         if (epoch + 1) % args.eval_every == 0 or epoch == args.epochs - 1:
-            top1, top5, _ = evaluate(model, X[va_t], M[va_t], y[va_t])
+            top1, top5, _ = evaluate(ema if ema is not None else model, X[va_t], M[va_t], y[va_t])
             if args.all_data:  # test recordings are in training now: keep the last model
                 top1 = epoch / args.epochs
             if top1 > best:
-                best, best_state = top1, {k: v.detach().clone() for k, v in model.state_dict().items()}
+                src = ema if ema is not None else model
+                best, best_state = top1, {k: v.detach().clone() for k, v in src.state_dict().items()}
             print(f"epoch {epoch + 1:3d}  loss {total / len(tr):.3f}  val top1 {top1:.3f}  top5 {top5:.3f}  "
                   f"({(time.time() - t0) / 60:.1f} min)", flush=True)
 

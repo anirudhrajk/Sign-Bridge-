@@ -30,7 +30,8 @@ def load_member(folder):
     ck = torch.load(Path(folder) / "model.pt", map_location="cpu")
     a = ck["args"]
     net = SignNetV2(len(ck["classes"]), d=a["dim"], repeats=a["repeats"],
-                    drop=a.get("drop", 0.2), head_drop=a.get("head_drop", 0.4), frames=a.get("frames", T))
+                    drop=a.get("drop", 0.2), head_drop=a.get("head_drop", 0.4), frames=a.get("frames", T),
+                    geo=a.get("geo", False))
     net.load_state_dict(ck["state"])
     return net.eval(), ck
 
@@ -61,6 +62,7 @@ def main():
     ap.add_argument("--members", nargs="+", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--reported", default="")
+    ap.add_argument("--cache", default="", help="cache name in data/cache_v2 (default: --lang)")
     args = ap.parse_args()
     nets, cks = zip(*(load_member(f) for f in args.members))
     if any(c["classes"] != cks[0]["classes"] for c in cks):
@@ -75,16 +77,22 @@ def main():
         metrics = {**json.loads(Path(args.reported).read_text())["metrics"], "trained_on_all_data": True,
                    "train_samples": first["metrics"]["train_samples"]}
     else:
-        d = np.load(ROOT / "data" / "cache_v2" / f"{args.lang}.npz", allow_pickle=True)
+        from ml.calibrate import npz_memmap
+        path = ROOT / "data" / "cache_v2" / f"{args.cache or args.lang}.npz"
+        d = np.load(path, allow_pickle=True)
         labels, signers = d["labels"], d["signers"]
-        _, va = split(labels, 0.2, 7, signers if (signers >= 0).all() else None)
+        if "split" in d.files:
+            va = np.flatnonzero(d["split"] == 1)
+        else:
+            _, va = split(labels, 0.2, 7, signers if (signers >= 0).all() else None)
+        Xall = npz_memmap(path, "X")
         idx = np.floor(np.linspace(0, T_IN - 1, frames) + 0.5).astype(int)
         dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         ens.to(dev)
         t1 = t5 = 0
         with torch.no_grad():
             for i in range(0, len(va), 512):
-                s = d["X"][va[i:i + 512]][:, idx].astype(np.float32)
+                s = np.stack([Xall[j] for j in va[i:i + 512]])[:, idx].astype(np.float32)
                 mk = np.isfinite(s[..., 0])
                 x = torch.as_tensor(np.nan_to_num(s) * mk[..., None], device=dev)
                 lp = ens(x, torch.as_tensor(mk, dtype=torch.float32, device=dev))[0]

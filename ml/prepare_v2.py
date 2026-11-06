@@ -72,15 +72,55 @@ def asl():
             np.array(signers), np.array(ids))
 
 
+def extra(folders, classes):
+    """Recordings extracted from videos (ml/holistic_extract.py), e.g. PopSign. Signer ids get
+    900000 added so they never clash with Kaggle's."""
+    from ml.holistic_extract import load
+    import json
+    Xs, ys, ws = [], [], []
+    low = {c.lower(): i for i, c in enumerate(classes)}
+    for f in folders:
+        lm = load(f)
+        for p in json.loads((Path(f) / "picked.json").read_text()):
+            a = lm.get(p["video"])
+            k = low.get(p["sign"].lower())
+            if a is None or k is None or not len(a) or not np.isfinite(a[:, 9:51, 0]).any():
+                continue
+            Xs.append(fixed(a.astype(np.float32)))
+            ys.append(k)
+            ws.append(900000 + int(p["signer"]))
+    return np.stack(Xs), np.array(ys), np.array(ws)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--lang", choices=["isl", "asl"], default="isl")
-    lang = ap.parse_args().lang
+    ap.add_argument("--extra", nargs="*", default=[], help="folders of extracted videos to add (ASL)")
+    ap.add_argument("--hold", default="", help="comma-separated extra signer ids to hold out for testing")
+    ap.add_argument("--name", default="", help="cache name (default: --lang)")
+    args = ap.parse_args()
+    lang = args.lang
+    name = args.name or lang
     X, labels, classes, cats, signers, ids = isl() if lang == "isl" else asl()
+    more = {}
+    if args.extra:
+        from ml.train import split
+        _, va = split(labels, 0.2, 7, signers if (signers >= 0).all() else None)
+        sp = np.zeros(len(labels), np.int8)
+        sp[va] = 1                                   # Kaggle: the same 4 held-out signers as before
+        ex, ey, ew = extra(args.extra, classes)
+        hold = {900000 + int(s) for s in args.hold.split(",") if s}
+        X = np.concatenate([X, ex])
+        labels = np.concatenate([labels, ey])
+        signers = np.concatenate([signers, ew])
+        ids = np.concatenate([ids, -1 - np.arange(len(ey))])
+        more["split"] = np.concatenate([sp, np.isin(ew, list(hold)).astype(np.int8)])
+        print(f"added {len(ey)} recordings from {len(set(ew))} signers "
+              f"({int(np.isin(ew, list(hold)).sum())} held out)")
     OUT.mkdir(parents=True, exist_ok=True)
-    np.savez(OUT / f"{lang}.npz", X=X, labels=labels, classes=np.array(classes),
-             categories=np.array(cats), signers=signers, ids=ids)
-    print(f"{lang}: {X.shape} ({X.nbytes / 1e9:.2f} GB), {len(classes)} signs -> {OUT / (lang + '.npz')}")
+    np.savez(OUT / f"{name}.npz", X=X, labels=labels, classes=np.array(classes),
+             categories=np.array(cats), signers=signers, ids=ids, **more)
+    print(f"{name}: {X.shape} ({X.nbytes / 1e9:.2f} GB), {len(classes)} signs -> {OUT / (name + '.npz')}")
 
 
 if __name__ == "__main__":
