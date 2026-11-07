@@ -72,9 +72,22 @@ def asl():
             np.array(signers), np.array(ids))
 
 
-def extra(folders, classes):
+def trim_rest(seq, margin=3):
+    """Drop the start and end where the arms hang down, as a seated webcam user's hands leave the frame."""
+    shoulder = np.nanmean(seq[:, 1:3, 1], axis=1)
+    hip = np.nanmean(seq[:, 7:9, 1], axis=1)
+    wrist = np.nanmin(seq[:, 5:7, 1], axis=1)     # the higher wrist (y grows downwards)
+    up = np.flatnonzero(wrist < (shoulder + hip) / 2)
+    if len(up) < 8:
+        return seq
+    return seq[max(0, up[0] - margin):up[-1] + margin + 1]
+
+
+def extra(folders, classes, only=None, x_scale=1.0, rest_copy=False):
     """Recordings extracted from videos (ml/holistic_extract.py), e.g. PopSign. Signer ids get
-    900000 added so they never clash with Kaggle's."""
+    900000 added so they never clash with Kaggle's. `only` keeps the videos with these name starts.
+    `x_scale` puts narrow videos into a 16:9 frame (640x720 -> 0.5), and `rest_copy` also keeps a
+    copy of each clip with the resting arms trimmed off."""
     from ml.holistic_extract import load
     import json
     Xs, ys, ws = [], [], []
@@ -82,13 +95,23 @@ def extra(folders, classes):
     for f in folders:
         lm = load(f)
         for p in json.loads((Path(f) / "picked.json").read_text()):
+            if only and not p["video"].startswith(tuple(only)):
+                continue
             a = lm.get(p["video"])
             k = low.get(p["sign"].lower())
             if a is None or k is None or not len(a) or not np.isfinite(a[:, 9:51, 0]).any():
                 continue
-            Xs.append(fixed(a.astype(np.float32)))
+            a = a.astype(np.float32)
+            if x_scale != 1:
+                a = a.copy()
+                a[..., 0] = (a[..., 0] - 0.5) * x_scale + 0.5
+            Xs.append(fixed(a))
             ys.append(k)
             ws.append(900000 + int(p["signer"]))
+            if rest_copy:
+                Xs.append(fixed(trim_rest(a)))
+                ys.append(k)
+                ws.append(900000 + int(p["signer"]))
     return np.stack(Xs), np.array(ys), np.array(ws)
 
 
@@ -98,17 +121,25 @@ def main():
     ap.add_argument("--extra", nargs="*", default=[], help="folders of extracted videos to add (ASL)")
     ap.add_argument("--hold", default="", help="comma-separated extra signer ids to hold out for testing")
     ap.add_argument("--name", default="", help="cache name (default: --lang)")
+    ap.add_argument("--new-words", default="", help="comma-separated words to add after the existing ones")
+    ap.add_argument("--only", default="", help="comma-separated video name starts to keep from --extra")
+    ap.add_argument("--x-scale", type=float, default=1.0, help="squeeze x to fit a 16:9 frame (640x720 videos: 0.5)")
+    ap.add_argument("--rest-copy", action="store_true", help="also keep a copy of each clip without the resting arms")
     args = ap.parse_args()
     lang = args.lang
     name = args.name or lang
     X, labels, classes, cats, signers, ids = isl() if lang == "isl" else asl()
     more = {}
+    if args.new_words:                               # new words go last, so old word numbers stay the same
+        added = args.new_words.split(",")
+        classes, cats = list(classes) + added, list(cats) + ["medical"] * len(added)
     if args.extra:
         from ml.train import split
         _, va = split(labels, 0.2, 7, signers if (signers >= 0).all() else None)
         sp = np.zeros(len(labels), np.int8)
         sp[va] = 1                                   # Kaggle: the same 4 held-out signers as before
-        ex, ey, ew = extra(args.extra, classes)
+        ex, ey, ew = extra(args.extra, classes, args.only.split(",") if args.only else None,
+                           args.x_scale, args.rest_copy)
         hold = {900000 + int(s) for s in args.hold.split(",") if s}
         X = np.concatenate([X, ex])
         labels = np.concatenate([labels, ey])

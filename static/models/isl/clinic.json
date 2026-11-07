@@ -2,6 +2,8 @@
  "boost": 8,
  "groups": {
   "Health": [
+   "fever",
+   "injury",
    "doctor",
    "hospital",
    "medicine",

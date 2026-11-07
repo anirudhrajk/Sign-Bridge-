@@ -20,7 +20,8 @@ WORDS = {
         "People": "mom, dad, child, grandma, grandpa",
     },
     "isl": {
-        "Health": "doctor, hospital, medicine, patient, sick, healthy, weak, strong, dead, death, deaf, blind, exercise",
+        "Health": "fever, injury, doctor, hospital, medicine, patient, sick, healthy, weak, strong, dead, death, deaf, "
+                  "blind, exercise",
         "How I feel": "bad, good, alright, hot, cold, warm, sad, happy, pleased, quiet, hard, soft",
         "Places and things": "bathroom, bedroom, bed, house, soap, phone, telephone, money, bill",
         "Talking": "hello, thank you, how are you, good morning, good afternoon, good evening, good night, "
