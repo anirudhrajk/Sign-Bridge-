@@ -52,7 +52,7 @@ def create_message():
     if len(body) > 2000:
         return jsonify({"error": "message is too long"}), 400
     source = payload.get("source", "text")
-    if source not in ("sign", "speech", "text", "emergency", "pain", "request"):
+    if source not in ("sign", "speech", "text", "emergency", "pain", "symptoms", "request"):
         source = "text"
     if current_user.role == "patient":
         s = _open_session_for_patient()

@@ -8,7 +8,7 @@
   const avatar = isPatient ? document.getElementById('patientAvatar') : null;
   let lastSignature = null, lastSeenId = null, lastCall = null;
 
-  const SOURCE_LABEL = { sign: 'Signed', speech: 'Spoken', text: 'Typed', emergency: 'Emergency', pain: 'Pain report', request: 'Request' };
+  const SOURCE_LABEL = { sign: 'Signed', speech: 'Spoken', text: 'Typed', emergency: 'Emergency', pain: 'Pain report', symptoms: 'Symptoms', request: 'Request' };
   const ANSWER_LABEL = { understood: '✓ Understood', repeat: 'Asked to repeat', simpler: 'Asked for simpler words' };
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 
@@ -26,7 +26,7 @@
     list.replaceChildren(...ordered.map(m => {
       const fromStaff = m.sender_role !== 'patient';
       const item = el('li', 'message ' + (fromStaff ? 'message--staff' : 'message--patient') +
-        (['emergency', 'pain'].includes(m.source) ? ' message--urgent' : ''));
+        (['emergency', 'pain', 'symptoms'].includes(m.source) ? ' message--urgent' : ''));
       const body = el('div', 'message__body');
       body.append(el('span', 'message-tag', `${m.sender} · ${SOURCE_LABEL[m.source] || m.source}`),
                   el('p', null, m.body), el('small', null, m.created_at));

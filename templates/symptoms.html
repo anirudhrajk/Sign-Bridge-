@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}My symptoms · SignBridge{% endblock %}
+{% block page_title %}How are you feeling?{% endblock %}
+{% block page_sub %}Tap what you have, then send. No signing or typing needed.{% endblock %}
+{% block content %}
+<section class="symptoms">
+  <div class="card">
+    <p class="section-title">1 · Tap what you have <span class="muted" style="text-transform:none;letter-spacing:0">(tap more than one if needed)</span></p>
+    {% for group in groups %}
+    <h2 class="symptom-group {{ 'symptom-group--urgent' if group.name == 'Urgent' }}">{{ group.name }}</h2>
+    <div class="symptom-grid">
+      {% for s in group.symptoms %}
+      <button type="button" class="symptom {{ 'symptom--urgent' if s.urgent }}" data-say="{{ s.say }}" data-urgent="{{ 1 if s.urgent else 0 }}" aria-pressed="false">
+        <span class="symptom__icon" aria-hidden="true">{{ s.emoji }}</span>
+        <span>{{ s.label }}</span>
+      </button>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card symptoms__send">
+    <p class="section-title">2 · How bad is it?</p>
+    <div class="alts__list" id="howBad">
+      {% for key, label in [('mild', 'A little'), ('moderate', 'Quite bad'), ('severe', 'Very bad')] %}
+      <button type="button" class="chip alt" data-bad="{{ key }}">{{ label }}</button>
+      {% endfor %}
+    </div>
+
+    <p class="section-title mt">3 · Since when?</p>
+    <div class="alts__list" id="since">
+      {% for s in ['a few hours', 'today', 'yesterday', 'a few days', 'a week or more'] %}
+      <button type="button" class="chip alt" data-since="{{ s }}">{{ s|capitalize }}</button>
+      {% endfor %}
+    </div>
+
+    <label class="field mt"><span>Anything else? <span class="muted">(optional)</span></span>
+      <input id="symptomExtra" type="text" maxlength="300" placeholder="For example: temperature 101">
+    </label>
+
+    <div class="result-box" aria-live="polite"><p id="symptomPreview" class="empty">Your message will appear here.</p></div>
+    <button class="btn btn--primary btn--block btn--lg" id="symptomSend" type="button" disabled>Send to doctor</button>
+    <a class="btn btn--ghost btn--block mt" href="{{ url_for('views.pain_report') }}"><svg class="icon"><use href="#i-person"/></svg> Show where it hurts</a>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const picked = new Map();   // sentence words -> urgent
+  let bad = null, since = null;
+  const preview = document.getElementById('symptomPreview'), send = document.getElementById('symptomSend');
+  const extra = document.getElementById('symptomExtra');
+  const join = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a.at(-1);
+  // "Very bad" goes to the doctor as urgent too, like a pain score of 8 or more.
+  const urgent = () => [...picked.values()].some(Boolean) || bad === 'severe';
+
+  function text() {
+    if (!picked.size) return '';
+    let s = `I have ${join([...picked.keys()])}.`;
+    if (bad) s += ` It is ${bad}.`;
+    if (since) s += ` It started ${since === 'today' || since === 'yesterday' ? since : since + ' ago'}.`;
+    const more = extra.value.trim();
+    if (more) s += ` ${more}`;
+    return s;
+  }
+  function update() {
+    const t = text();
+    preview.textContent = t || 'Tap what you have.';
+    preview.className = t ? '' : 'empty';
+    send.disabled = !t;
+    send.textContent = urgent() ? 'Send as urgent' : 'Send to doctor';
+    send.classList.toggle('btn--danger', urgent());
+  }
+  document.querySelectorAll('.symptom').forEach(b => b.addEventListener('click', () => {
+    const on = !picked.has(b.dataset.say);
+    if (on) picked.set(b.dataset.say, b.dataset.urgent === '1'); else picked.delete(b.dataset.say);
+    b.classList.toggle('is-on', on);
+    b.setAttribute('aria-pressed', on);
+    update();
+  }));
+  const pick = (sel, attr, set) => document.querySelectorAll(sel).forEach(b => b.addEventListener('click', () => {
+    const on = !b.classList.contains('is-on');
+    document.querySelectorAll(sel).forEach(x => x.classList.remove('is-on'));
+    if (on) b.classList.add('is-on');
+    set(on ? b.dataset[attr] : null); update();
+  }));
+  pick('[data-bad]', 'bad', v => bad = v);
+  pick('[data-since]', 'since', v => since = v);
+  extra.addEventListener('input', update);
+  update();
+  send.addEventListener('click', async () => {
+    send.disabled = true;
+    const ok = await SignBridge.sendMessage(text(), urgent() ? 'emergency' : 'symptoms');
+    if (ok) { SignBridge.toast('Sent to your doctor.'); setTimeout(() => location.href = '/patient', 900); }
+    else send.disabled = false;
+  });
+})();
+</script>
+{% endblock %}

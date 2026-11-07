@@ -7,6 +7,7 @@ from flask_login import login_required, current_user
 from extensions import db
 from models import Session, Message, MedicalSign, Phrase, AuditLog, User
 from services.emergency import get_default_phrases
+from services.symptoms import symptom_groups
 from services.dictionary import get_local_seed
 from services.audit import log_action
 from services.sign_recognition import available_languages, resolve_language, avatar_language, NAMES as SIGN_LANGUAGE_NAMES
@@ -121,6 +122,13 @@ def pain_report():
     return render_template("pain_report.html")
 
 
+@views_bp.route("/patient/symptoms")
+@login_required
+def symptoms():
+    _require_role("patient")
+    return render_template("symptoms.html", groups=symptom_groups())
+
+
 @views_bp.route("/patient/card")
 @login_required
 def deaf_card():
@@ -164,8 +172,9 @@ def doctor_home():
     urgent = {}
     for s in sessions:
         last = next((m for m in reversed(s.messages) if m.direction == "patient_to_doctor"), None)
-        if last and last.source in ("emergency", "pain", "request"):
-            urgent[s.id] = {"emergency": "Emergency", "pain": "Pain report", "request": "Request"}[last.source]
+        if last and last.source in ("emergency", "pain", "symptoms", "request"):
+            urgent[s.id] = {"emergency": "Emergency", "pain": "Pain report", "symptoms": "Symptoms",
+                            "request": "Request"}[last.source]
     sessions.sort(key=lambda s: s.id not in urgent)
     return render_template("doctor_home.html", sessions=sessions, counts=counts, urgent=urgent)
 
