@@ -33,6 +33,8 @@
       this.T = m.frames; this.P = m.points;
       this.face = [...m.lips, ...m.eye_r, ...m.eye_l, ...m.nose];
       this.custom = [];
+      this.clinic = null;   // Set of labels to favour, see setClinic
+      this.clinicLog = 0;
       this.queue = Promise.resolve();   // one model run at a time
       this.format = 2;
       this.teachBias = m.teach_bias ?? 19;   // how easily a taught sign beats a built-in word
@@ -96,6 +98,12 @@
     async embed(frames) { return (await this.run(frames)).emb; }
     setCustom(examples) { this.custom = examples || []; }
 
+    /** Favour these words: each counts `boost` times more likely. Other words can still win. null turns it off. */
+    setClinic(words, boost) {
+      this.clinic = words ? new Set(words) : null;
+      this.clinicLog = words ? Math.log(boost) : 0;
+    }
+
     async predict(frames, top = 5) {
       const { logp, emb } = await this.run(frames);
       const scores = logp.map((s, n) => ({ index: n, s, name: this.classes[n], label: this.labels[n] }));
@@ -106,6 +114,8 @@
         if (!best.has(ex.label) || sim > best.get(ex.label)) best.set(ex.label, sim);
       }
       for (const [label, sim] of best) scores.push({ index: -1, s: 20 * sim - this.teachBias, name: 'taught:' + label, label, custom: true, sim });
+      // Taught signs belong to this clinic, so they are favoured along with its word list.
+      if (this.clinic) for (const x of scores) if (x.custom || this.clinic.has(x.label)) x.s += this.clinicLog;
       const hi = Math.max(...scores.map(x => x.s));
       let z = 0;
       for (const x of scores) z += Math.exp(x.s - hi);
