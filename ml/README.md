@@ -29,7 +29,7 @@ Every webcam signer scores 73-82%. A slow phone (10 fps) loses about 3.5 points.
 
 ### Clinic words
 
-`ml/clinic_words.py` lists words a patient is likely to sign (82 of ASL's 250, 83 of ISL's 262), picked
+`ml/clinic_words.py` lists words a patient is likely to sign (82 of ASL's 250, 85 of ISL's 264), picked
 by meaning. The sign page counts each one 8 times more likely than other words. This is a boost, not a
 hard list: another word still wins when the sign is clearly that word, and the patient can switch it
 off. The boost was chosen on held-out Kaggle and phone signers. A higher boost stops the app adding
@@ -76,7 +76,8 @@ on the lite tracker and 32-35 ms on the full one at any of those sizes, on a lap
 
 | Data | Signs | Top-1 | Top-5 | Test set |
 |---|---|---|---|---|
-| INCLUDE, 4,284 recordings | 262 | 98.1% | 99.2% | random 20% (signers may repeat) |
+| INCLUDE, 4,284 recordings | 262 | 97.7% | | random 20% (signers may repeat); new model, was 97.8% on the same rows |
+| Fever and injury, 1 new person | 2 | 20 of 20 | | only 5 real clips per word in each of 2 forms, the other 40 are tilted copies; not deaf signers |
 
 Every simulated webcam condition is at least 95.8%. The ASL recipe scored 97.1% here, so ISL keeps
 its model (7.1 MB, full precision).
@@ -123,6 +124,26 @@ python ml/check_v2.py --lang isl --stress
 python ml/train_v2.py --lang isl --epochs 200 --all-data --reported data/models_v2/isl/model.json --out data/models_v2/isl_final
 ```
 
+### Fever and injury
+
+From the Indian Sign Language Video Dataset (Kaggle, prasadshet, marked MIT): 60 clips per word from
+four contributors, 640x720, many of them tilted copies. Hearing contributors copied the signs from the
+government ISL channel, so a deaf signer should check them. Other words from the same people are mixed in
+so the model cannot learn the camera instead of the sign.
+
+```bash
+data/venv_mp/Scripts/python ml/holistic_extract.py data/isl_medical/all --parts 6 --complexity 1
+python ml/prepare_v2.py --lang isl --extra data/isl_medical/all --only k_ --new-words fever,injury   --x-scale 0.5 --rest-copy --hold 20230926,20230927 --name isl_plus
+python ml/train_v2.py --lang isl --cache isl_plus --epochs 200 --out data/models_v2/isl_m1
+python ml/train_v2.py --lang isl --cache isl_plus --epochs 200 --all-data   --reported data/models_v2/isl_m1/model.json --out data/models_v2/isl_m1_all
+data/venv_mp/Scripts/python ml/add_sign_clip.py track video.mp4 fever.npz --x-scale 0.5
+python ml/add_sign_clip.py add fever.npz --lang isl --name fever --label fever
+```
+
+On 52 words ISL does not know, it was sure enough to add fever or injury on 2-3% of clips.
+The ISL emergency-word videos (Mendeley 2vfdm42337) were tried and dropped. They were filmed behind a
+board with no face or body, and the tracker found a hand in only 1-18% of frames.
+
 ## Older models (v1)
 
 `ml/prepare_data.py`, `ml/train.py` and `ml/check_export.py` build the 49-point v1 format
@@ -144,6 +165,7 @@ Patients can also teach their own signs in the app (`docs/teach-a-sign.md`).
 - On a new person's webcam, about 1 sign in 4 is misread or left unsure. The app only adds a
   word by itself at 70% confidence (right about 9 times in 10) and otherwise asks.
 - A pause in the middle of a sign can split it into two words (1 in 30 webcam signs in the page test).
-- The 250 ASL signs come from a children's vocabulary (PopSign); ISL has 262 everyday signs.
+- The 250 ASL signs come from a children's vocabulary (PopSign); ISL has 264 signs. Most medical words are
+  still missing from both. The app's symptom screen covers them by tapping until there is data.
   Neither has many medical words. Recording medical signs is the most valuable next step.
 - The models read one isolated word at a time, not continuous signing or grammar.

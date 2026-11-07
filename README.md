@@ -28,7 +28,7 @@ Open http://localhost:5000. Demo accounts: `patient@signbridge.app` / `patient12
 
 | Code | Language | Recognition | Avatar | Data |
 |------|----------|-------------|--------|------|
-| `isl` | Indian Sign Language | 262 signs | 262 signs | AI4Bharat INCLUDE (landmarks) |
+| `isl` | Indian Sign Language | 264 signs | 264 signs | AI4Bharat INCLUDE (landmarks), Indian Sign Language Video Dataset (Kaggle, prasadshet, MIT) for fever and injury |
 | `asl` | American Sign Language | 250 signs | 250 signs | Google Isolated Sign Language Recognition (Kaggle) |
 
 Patients choose their sign language in Settings. Adding a language is a data and training job,
