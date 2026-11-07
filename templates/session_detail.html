@@ -16,6 +16,7 @@
     <input id="callRoom" class="call-bar__room" type="text" maxlength="40" placeholder="Room, e.g. Room 4">
     <button class="btn btn--primary" id="callInBtn" type="button"><svg class="icon"><use href="#i-person"/></svg> Call patient in</button>
     <a class="btn btn--ghost" href="{{ url_for('views.visit_summary', session_id=session.id) }}">Visit summary</a>
+    {% if history_ok %}<a class="btn btn--ghost" href="{{ url_for('views.patient_history', patient_id=session.patient_id) }}"><svg class="icon"><use href="#i-book"/></svg> Full history</a>{% endif %}
   </div>
 </div>
 <div class="card mt">

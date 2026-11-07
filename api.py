@@ -1,11 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from extensions import db
 import json
 
-from models import Session, Message, Phrase, CustomSign
+from models import Session, Message, Phrase, CustomSign, VideoCall, CallSignal
 from services.sign_recognition import supported_signs, model_info, available_languages, resolve_language
 from services.language_processing import sentence_to_signs
 from services.audit import log_action
@@ -52,7 +52,7 @@ def create_message():
     if len(body) > 2000:
         return jsonify({"error": "message is too long"}), 400
     source = payload.get("source", "text")
-    if source not in ("sign", "speech", "text", "emergency", "pain", "symptoms", "request"):
+    if source not in ("sign", "speech", "text", "emergency", "pain", "symptoms", "request", "card"):
         source = "text"
     if current_user.role == "patient":
         s = _open_session_for_patient()
@@ -221,4 +221,131 @@ def delete_custom_sign(sign_id):
     db.session.delete(row)
     db.session.commit()
     log_action("custom_sign_deleted", f"{row.lang}: {row.label}")
+    return jsonify({"ok": True})
+
+
+# ---------- video calls ----------
+# The video itself goes straight between the two browsers (WebRTC). These routes only carry the
+# connection details ("signals") between them, and record who called whom and when.
+RING_FOR = timedelta(minutes=10)     # an unanswered call stops showing to doctors after this
+SIGNAL_KINDS = ("offer", "answer", "ice")
+
+
+def _call_role(call):
+    """'patient' or 'doctor' if the current user takes part in this call, else None."""
+    if current_user.role == "patient" and call.patient_id == current_user.id:
+        return "patient"
+    if current_user.role in ("doctor", "admin") and call.doctor_id == current_user.id:
+        return "doctor"
+    return None
+
+
+def _call_json(call):
+    return {"id": call.id, "status": call.status, "session_id": call.session_id,
+            "patient": call.patient.display_name, "doctor": call.doctor.display_name if call.doctor else None,
+            "since": call.created_at.isoformat() + "Z",
+            "answered_at": call.answered_at.isoformat() + "Z" if call.answered_at else None}
+
+
+def _end(call):
+    call.status = "ended"
+    call.ended_at = datetime.utcnow()
+    CallSignal.query.filter_by(call_id=call.id).delete()   # connection details are not kept
+
+
+@api_bp.post("/calls")
+@login_required
+def start_call():
+    """A patient calls a doctor. Any earlier call of theirs that is still open is ended first."""
+    if current_user.role != "patient":
+        return jsonify({"error": "Only patients can start a call"}), 403
+    for old in VideoCall.query.filter(VideoCall.patient_id == current_user.id, VideoCall.status != "ended").all():
+        _end(old)
+    s = _open_session_for_patient()
+    call = VideoCall(session_id=s.id, patient_id=current_user.id, status="ringing")
+    db.session.add(call)
+    db.session.commit()
+    log_action("video_call_started", f"call {call.id} session {s.id}")
+    return jsonify(_call_json(call))
+
+
+@api_bp.get("/calls/waiting")
+@login_required
+def waiting_calls():
+    """Patients waiting for a doctor to answer, oldest first."""
+    if current_user.role not in ("doctor", "admin"):
+        return jsonify({"calls": []})
+    since = datetime.utcnow() - RING_FOR
+    calls = VideoCall.query.filter(VideoCall.status == "ringing", VideoCall.created_at >= since) \
+        .order_by(VideoCall.created_at).all()
+    return jsonify({"calls": [_call_json(c) for c in calls]})
+
+
+@api_bp.post("/calls/<int:call_id>/accept")
+@login_required
+def accept_call(call_id):
+    if current_user.role not in ("doctor", "admin"):
+        return jsonify({"error": "forbidden"}), 403
+    call = VideoCall.query.get_or_404(call_id)
+    if call.status != "ringing" or call.created_at < datetime.utcnow() - RING_FOR:
+        return jsonify({"error": "This call has already been answered or ended."}), 409
+    call.status = "active"
+    call.doctor_id = current_user.id
+    call.answered_at = datetime.utcnow()
+    s = db.session.get(Session, call.session_id)
+    if s and s.doctor_id is None:
+        s.doctor_id = current_user.id
+    db.session.commit()
+    log_action("video_call_answered", f"call {call.id}")
+    return jsonify(_call_json(call))
+
+
+@api_bp.post("/calls/<int:call_id>/signal")
+@login_required
+def send_signal(call_id):
+    call = VideoCall.query.get_or_404(call_id)
+    role = _call_role(call)
+    if not role:
+        return jsonify({"error": "forbidden"}), 403
+    if call.status == "ended":
+        return jsonify({"error": "The call has ended."}), 409
+    data = request.get_json(silent=True) or {}
+    kind, payload = data.get("kind"), data.get("payload")
+    if kind not in SIGNAL_KINDS or not isinstance(payload, (dict, list)):
+        return jsonify({"error": "bad signal"}), 400
+    text = json.dumps(payload, separators=(",", ":"))
+    if len(text) > 20000:
+        return jsonify({"error": "signal too large"}), 400
+    db.session.add(CallSignal(call_id=call.id, sender_role=role, kind=kind, payload=text))
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@api_bp.get("/calls/<int:call_id>")
+@login_required
+def poll_call(call_id):
+    """The call's state, plus signals from the other side newer than ?after=<id>."""
+    call = VideoCall.query.get_or_404(call_id)
+    role = _call_role(call)
+    if not role:
+        return jsonify({"error": "forbidden"}), 403
+    after = request.args.get("after", 0, type=int)
+    other = "doctor" if role == "patient" else "patient"
+    signals = CallSignal.query.filter(CallSignal.call_id == call.id, CallSignal.sender_role == other,
+                                      CallSignal.id > after).order_by(CallSignal.id).all()
+    out = _call_json(call)
+    out["signals"] = [{"id": x.id, "kind": x.kind, "payload": json.loads(x.payload)} for x in signals]
+    return jsonify(out)
+
+
+@api_bp.post("/calls/<int:call_id>/end")
+@login_required
+def end_call(call_id):
+    call = VideoCall.query.get_or_404(call_id)
+    if not _call_role(call):
+        return jsonify({"error": "forbidden"}), 403
+    if call.status != "ended":
+        _end(call)
+        db.session.commit()
+        log_action("video_call_ended", f"call {call.id}")
     return jsonify({"ok": True})

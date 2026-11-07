@@ -1,0 +1,22 @@
+/* MoltenMetal from React Bits, JS-CSS variant: styles copied unchanged, SignBridge additions at the end. */
+.molten-metal-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.molten-metal-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- SignBridge: full-page background ---------- */
+.molten-metal-container.sb-molten {
+  position: fixed; inset: 0; z-index: -1; width: 100vw; height: 100vh; height: 100lvh; pointer-events: none;
+}
+.sb-molten:not(.is-on), :root[data-theme="light"] .sb-molten, html.a11y-contrast .sb-molten { display: none; }
+@media print { .sb-molten { display: none !important; } }

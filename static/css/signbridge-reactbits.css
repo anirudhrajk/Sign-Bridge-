@@ -1,0 +1,287 @@
+/* SignBridge visual refresh: React Bits-inspired look (soft mint aurora, glass panels,
+   spotlight cards, lifted buttons), adapted to SignBridge's own colour tokens.
+   Loaded after app.css and landing.css. Styles only: no layout or behaviour changes. */
+
+/* ---------- App palette ----------
+   Black is the standard look, with the MoltenMetal background moving behind every page.
+   Accents are a light gray that reads clearly on black; amber stays the doctor, red stays emergencies and pain.
+   Light stays in Settings (data-theme="light") for bright rooms. */
+:root:not([data-theme="light"]) {
+  --bg: #000000; --surface: rgba(14, 14, 17, .78); --surface-2: rgba(28, 28, 33, .72);
+  --border: rgba(255, 255, 255, .10); --border-strong: rgba(255, 255, 255, .20);
+  --text: #f4f4f5; --muted: #a1a1aa;
+  --primary: #d4d4d8; --primary-strong: #f4f4f5; --primary-soft: rgba(212, 212, 216, .12); --on-primary: #09090b;
+  --accent: #f4b63f; --accent-soft: rgba(244, 182, 63, .14); --warning: #f4b63f; --warning-soft: rgba(244, 182, 63, .14);
+  --danger: #ff5257; --danger-soft: rgba(255, 82, 87, .15); --success: #d4d4d8; --success-soft: rgba(212, 212, 216, .12);
+  --ring: rgba(228, 228, 231, .35);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow: 0 10px 35px rgba(0, 0, 0, .35);
+  --shadow-lg: 0 22px 60px rgba(0, 0, 0, .55);
+  color-scheme: dark;
+}
+/* High contrast on black: solid black panels, white text, so nothing moves behind the words. */
+html.a11y-contrast:not([data-theme="light"]) {
+  --text: #ffffff; --muted: #e4e4e7; --border: #a1a1aa; --border-strong: #e4e4e7;
+  --primary: #ffffff; --primary-strong: #ffffff; --primary-soft: #27272a; --success: #ffffff;
+  --surface: #000000; --surface-2: #000000; --bg: #000000;
+}
+/* Light: white panels, dark-gray accents (no green). */
+:root[data-theme="light"] {
+  --bg: #f4f4f5; --surface: #ffffff; --surface-2: #f4f4f5;
+  --border: #e4e4e7; --border-strong: #d4d4d8;
+  --text: #18181b; --muted: #52525b;
+  --primary: #3f3f46; --primary-strong: #18181b; --primary-soft: #ececee; --on-primary: #ffffff;
+  --accent: #a85d06; --accent-soft: #fdf0dc; --warning: #94560a; --warning-soft: #fdf2d9;
+  --danger: #c0262d; --danger-soft: #fdecec; --success: #3f3f46; --success-soft: #ececee;
+  --ring: rgba(63, 63, 70, .28);
+  --shadow-sm: 0 1px 2px rgba(24, 24, 27, .06);
+  --shadow: 0 10px 35px rgba(24, 24, 27, .06);
+  --shadow-lg: 0 22px 60px rgba(24, 24, 27, .12);
+  color-scheme: light;
+}
+html.a11y-contrast[data-theme="light"] {
+  --text: #000; --muted: #1f1f1f; --border: #5c5c5c; --border-strong: #1f1f1f;
+  --primary: #18181b; --primary-strong: #000000; --primary-soft: #e4e4e7; --success: #18181b;
+  --surface: #ffffff; --surface-2: #ffffff; --bg: #ffffff;
+}
+:root { --radius-sm: 8px; --radius: 12px; --radius-lg: 18px; }
+
+/* ---------- App shell ---------- */
+html { scroll-behavior: smooth; }
+::selection { background: color-mix(in srgb, var(--primary) 20%, transparent); color: var(--text); }
+
+/* Soft aurora behind app pages on the Light theme (black uses MoltenMetal). Fixed, never clickable. */
+:root[data-theme="light"] body:has(> .shell, > .public)::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(ellipse at 88% 4%, color-mix(in srgb, var(--primary) 13%, transparent), transparent 36%),
+    radial-gradient(ellipse at 4% 92%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 32%);
+}
+
+.brand__mark { box-shadow: inset 0 0 0 1px #2c3036, 0 6px 18px rgba(0, 0, 0, .35); }
+.shell > .sidebar {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, transparent), color-mix(in srgb, var(--surface-2) 88%, transparent));
+  backdrop-filter: blur(18px);
+}
+.shell .nav__item { transition: transform .22s ease, background .22s ease, color .22s ease, box-shadow .22s ease; }
+.shell .nav__item.is-active { box-shadow: inset 3px 0 0 var(--primary), 0 8px 24px color-mix(in srgb, var(--primary) 9%, transparent); }
+@media (min-width: 761px) { .shell .nav__item:hover { transform: translateX(3px); } }
+@media (max-width: 760px) { .shell .nav__item.is-active { box-shadow: none; } }
+.shell .topbar { background: color-mix(in srgb, var(--surface) 78%, transparent); backdrop-filter: saturate(1.4) blur(18px); }
+
+:is(.shell, .public) :is(.page-title, h1, h2, h3) { letter-spacing: -.03em; text-wrap: balance; }
+
+/* Page fade-in. Ends with no transform, so fixed overlays (incoming call) still cover the screen. */
+.shell .content { animation: sb-content-in .35s cubic-bezier(.2, .75, .25, 1) backwards; }
+@keyframes sb-content-in { from { opacity: 0; transform: translateY(10px); } }
+
+/* Sign-in side panel: glass. */
+.public .auth__panel {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--primary-soft) 80%, transparent), color-mix(in srgb, var(--surface) 70%, transparent));
+  backdrop-filter: blur(18px);
+}
+.public .auth__art { opacity: .06; color: var(--primary); }
+
+/* ---------- Surfaces ---------- */
+:is(.shell, .public) :is(.card, .dict-card, .deaf-card, .camera-frame, .avatar__stage) {
+  transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+}
+:is(.shell, .public) .card:not(.note) { border-color: color-mix(in srgb, var(--border) 85%, transparent); }
+
+/* Spotlight: a soft glow that follows the pointer. Drawn as a background layer,
+   so it never changes layout, clipping or stacking. */
+.sb-spotlight:hover {
+  background-image: radial-gradient(380px circle at var(--sb-x, 50%) var(--sb-y, 50%), color-mix(in srgb, var(--primary) 9%, transparent), transparent 42%);
+}
+@media (hover: hover) {
+  .sb-hover:is(.card, .dict-card, .deaf-card):hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--primary) 28%, transparent);
+    box-shadow: var(--shadow-lg);
+  }
+  .shell .emergency-btn:hover { transform: translateY(-3px); box-shadow: 0 18px 40px color-mix(in srgb, var(--danger) 18%, transparent); }
+}
+
+/* ---------- Buttons and fields ---------- */
+:is(.shell, .public) .btn { transition: transform .2s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease, color .2s ease; }
+:is(.shell, .public) .btn--primary {
+  background: linear-gradient(110deg, var(--primary), var(--primary-strong));
+  box-shadow: 0 9px 22px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+:is(.shell, .public) .btn--primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 14px 28px color-mix(in srgb, var(--primary) 28%, transparent); }
+:is(.shell, .public) .btn--ghost:hover:not(:disabled) { border-color: color-mix(in srgb, var(--primary) 35%, var(--border-strong)); }
+:is(.shell, .public) :where(input, select, textarea) { transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+:is(.shell, .public) :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea):focus-visible {
+  outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px var(--ring);
+}
+:is(.shell, .public) :is(.chip, .badge) { backdrop-filter: blur(10px); }
+
+/* Scroll reveal, added by signbridge-reactbits.js only when the browser supports it. */
+.sb-reveal { opacity: 0; transform: translateY(18px); transition: opacity .65s ease, transform .65s cubic-bezier(.2, .75, .25, 1); }
+.sb-reveal.sb-visible { opacity: 1; transform: none; }
+
+/* ---------- Landing page ----------
+   landing.css draws everything from these tokens, so the black look is a palette swap.
+   MoltenMetal moves behind the page. Light gray is the patient and main actions,
+   amber the doctor, red emergencies only. */
+body:has(.hero) {
+  --black: #000000;    /* page background */
+  --gauze: #f4f4f5;    /* headings */
+  --saline: #a1a1aa;   /* body text */
+  --suture: rgba(255, 255, 255, .12);
+  --oximeter: #d4d4d8;
+  --betadine: #f4b63f;
+  --arterial: #ff5257;
+  color-scheme: dark;
+}
+/* The page colour sits on <html>; <body> stays clear so the background shows through. */
+html:has(.hero) { background: #000; }
+body:has(.hero) { background: transparent; }
+body:has(.hero) .bar { backdrop-filter: blur(18px); background: rgba(0, 0, 0, .55); border-bottom: 1px solid var(--suture); }
+.hero h1 { font-weight: 650; letter-spacing: -.055em; }
+.hero h1 .mask span { background: linear-gradient(105deg, #ffffff 15%, #d4d4d8 60%, #8e8e96 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+body:has(.hero) .gloss li { color: #71717a; }
+.signer {
+  padding: 14px 18px 0; border: 1px solid rgba(255, 255, 255, .12); border-radius: 28px;
+  background: linear-gradient(145deg, rgba(24, 24, 28, .72), rgba(10, 10, 12, .62));
+  backdrop-filter: blur(14px);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .55);
+}
+.signer figcaption { padding-bottom: 14px; }
+body:has(.hero) .btn { border-radius: 12px; transition: background .25s, color .25s, border-color .25s, transform .2s ease, box-shadow .2s ease; }
+body:has(.hero) .btn--solid { background: linear-gradient(110deg, #d4d4d8, #f4f4f5); border-color: transparent; color: #09090b; box-shadow: 0 9px 22px rgba(212, 212, 216, .16); }
+body:has(.hero) .btn--solid:hover { background: linear-gradient(110deg, #f4f4f5, #ffffff); color: #09090b; transform: translateY(-2px); box-shadow: 0 14px 28px rgba(212, 212, 216, .24); }
+body:has(.hero) .chat__check span { border-radius: 10px; }
+body:has(.hero) .chat__check span:first-child { color: #09090b; }
+/* Tiles are moved by the scroll animation, so hover changes only the glow, not the position. */
+.tile {
+  border: 1px solid rgba(255, 255, 255, .12); border-radius: 22px; overflow: hidden;
+  background: rgba(12, 12, 15, .74); box-shadow: 0 15px 45px rgba(0, 0, 0, .45);
+  transition: box-shadow .35s ease, border-color .35s ease;
+}
+.tile:hover { border-color: rgba(212, 212, 216, .35); box-shadow: 0 25px 60px rgba(0, 0, 0, .6); }
+.faq details { padding: 0 18px; border: 1px solid var(--suture); border-radius: 16px; background: rgba(12, 12, 15, .62); transition: background .2s ease; }
+.faq details + details { margin-top: 10px; }
+.faq details:last-child { border-bottom: 1px solid var(--suture); }
+.faq details[open] { background: rgba(28, 28, 33, .78); }
+body:has(.hero) .person__tip { background: rgba(14, 14, 17, .94); border-color: rgba(212, 212, 216, .4); border-radius: 12px; box-shadow: 0 18px 40px rgba(0, 0, 0, .5); }
+body:has(.hero) .dock { backdrop-filter: blur(18px); background: rgba(10, 10, 12, .72); box-shadow: 0 12px 40px rgba(0, 0, 0, .5); }
+body:has(.hero) .dock a.is-on { color: #09090b; }
+@media (max-width: 760px) { .signer { border-radius: 20px; padding: 10px 12px 0; } }
+
+/* ---------- Motion preferences ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .sb-reveal { opacity: 1; transform: none; }
+}
+html.a11y-motion { scroll-behavior: auto; }
+html.a11y-motion .sb-reveal { opacity: 1; transform: none; }
+
+/* ---------- Visit summary folder (patient dashboard) ---------- */
+.sb-visits {
+  position: fixed; inset: 0; z-index: 70; display: grid; grid-template-rows: auto 1fr; justify-items: center;
+  padding: max(28px, env(safe-area-inset-top)) 16px 24px; overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 40%, rgba(40, 52, 82, .5), rgba(0, 0, 0, .86) 70%);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  opacity: 0; transition: opacity .35s ease;
+}
+.sb-visits.is-open { opacity: 1; }
+.sb-visits__head { text-align: center; color: #f4f4f5; transform: translateY(10px); transition: transform .5s cubic-bezier(.2, .8, .2, 1); }
+.sb-visits.is-open .sb-visits__head { transform: none; }
+.sb-visits__head h2 { margin: 0 0 4px; font-size: clamp(1.4rem, 3vw, 1.9rem); letter-spacing: -.02em; }
+.sb-visits__head p { margin: 0; color: #a1a1aa; font-size: .95rem; }
+.sb-visits__desk { display: grid; place-items: center; width: 100%; min-height: 0; }
+.sb-visits__close {
+  position: absolute; top: max(16px, env(safe-area-inset-top)); right: 16px; z-index: 2;
+  display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%;
+  background: rgba(30, 30, 34, .85); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); color: #f4f4f5; cursor: pointer;
+}
+.sb-visits__close:focus-visible { outline: 2px solid #f4f4f5; outline-offset: 2px; }
+/* One visit's chat, on a folder page. Sizes follow the folder's scale, like the stock document pages. */
+.sb-paper {
+  display: flex; flex-direction: column; height: 100%; box-sizing: border-box;
+  gap: calc(5px * var(--folder-scale)); padding: calc(12px * var(--folder-scale)) calc(11px * var(--folder-scale));
+  color: var(--folder-paper-text); font-family: inherit;
+}
+.sb-paper__title { font-size: calc(11px * var(--folder-scale)); font-weight: 650; letter-spacing: -.01em; line-height: 1.2; }
+.sb-paper__meta { margin-top: calc(-4px * var(--folder-scale)); color: var(--folder-paper-ink-strong); font-size: calc(7.5px * var(--folder-scale)); }
+.sb-paper__chat { display: flex; flex: 1; flex-direction: column; gap: calc(4px * var(--folder-scale)); min-height: 0; overflow: hidden; justify-content: flex-end; }
+.sb-paper__msg {
+  max-width: 86%; margin: 0; padding: calc(4px * var(--folder-scale)) calc(6px * var(--folder-scale));
+  border-radius: calc(7px * var(--folder-scale)); font-size: calc(7.5px * var(--folder-scale)); line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.sb-paper__msg--you { align-self: flex-end; background: #2f3b57; color: #f4f4f5; border-bottom-right-radius: calc(2px * var(--folder-scale)); }
+.sb-paper__msg--doc { align-self: flex-start; background: #ececf0; color: #27272a; border-bottom-left-radius: calc(2px * var(--folder-scale)); }
+.sb-paper__empty { margin: auto 0; color: var(--folder-paper-ink-strong); font-size: calc(8px * var(--folder-scale)); text-align: center; }
+.sb-paper__open { color: #3f5fa8; font-size: calc(7px * var(--folder-scale)); font-weight: 600; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .sb-visits, .sb-visits__head { transition: none; } }
+
+/* ---------- Doctor: patients waiting on a video call ---------- */
+.vc-alert {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 18px; padding: 14px 16px; border-radius: 18px;
+  background: var(--surface); box-shadow: inset 0 0 0 1px var(--border-strong, rgba(255, 255, 255, .16));
+  color: var(--text); text-decoration: none;
+}
+.vc-alert[hidden] { display: none; }
+.vc-alert > span:nth-child(2) { display: grid; flex: 1; gap: 2px; }
+.vc-alert small { color: var(--muted); }
+.vc-alert__pulse { position: relative; width: 12px; height: 12px; border-radius: 50%; background: var(--primary); flex: none; }
+.vc-alert__pulse::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--primary);
+  animation: vc-alert 1.6s ease-out infinite;
+}
+@keyframes vc-alert { from { transform: scale(1); opacity: 1; } to { transform: scale(2.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .vc-alert__pulse::after { animation: none; } }
+
+/* ---------- One device together (/together): numbered steps ---------- */
+.together__intro p { max-width: 70ch; }
+.together__switch {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 14px; border-radius: 999px;
+  background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); color: var(--text);
+  font-size: .9rem; font-weight: 600; text-decoration: none;
+}
+.together__switch:hover { box-shadow: inset 0 0 0 1px var(--border-strong, rgba(255, 255, 255, .2)); }
+.together__switch .icon { width: 16px; height: 16px; }
+.together__step {
+  display: flex; align-items: center; gap: 10px; margin: 28px 0 12px; font-size: 1.05rem; font-weight: 650; letter-spacing: -.01em;
+}
+.together__step span {
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--primary); color: var(--on-primary); font-size: .8rem; font-weight: 700;
+}
+.together .translator { align-items: stretch; }
+
+/* ---------- Symptom tiles: line icons, one colour, quiet borders ---------- */
+.symptom-group {
+  display: flex; align-items: center; gap: 12px; margin: 22px 0 10px;
+  color: var(--muted); font-size: .72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+}
+.symptom-group::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.symptom-group--urgent { color: var(--danger); }
+.symptom-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
+.symptom {
+  position: relative; align-items: flex-start; justify-content: space-between; gap: 14px;
+  min-height: 100px; padding: 14px; border-radius: 14px; text-align: left;
+  background: var(--surface-2); border: 1px solid var(--border);
+  font-size: .9rem; font-weight: 500; letter-spacing: -.005em;
+  transition: border-color .15s ease, background .15s ease;
+}
+.symptom__icon {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px;
+  color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong, rgba(255, 255, 255, .16));
+  transition: background .15s ease, color .15s ease;
+}
+.symptom:hover { border-color: var(--border-strong, rgba(255, 255, 255, .24)); }
+.symptom:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.symptom.is-on { background: var(--surface); border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+.symptom.is-on .symptom__icon { background: var(--text); color: var(--bg); box-shadow: none; }
+.symptom.is-on::after {
+  content: ""; position: absolute; top: 14px; right: 14px; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--text) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 12 4 4 8-8'/%3E%3C/svg%3E") center / 12px no-repeat;
+}
+.symptom--urgent .symptom__icon { color: var(--danger); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 45%, transparent); }
+.symptom--urgent:hover { border-color: color-mix(in srgb, var(--danger) 55%, transparent); }
+.symptom--urgent.is-on { background: var(--surface); border-color: var(--danger); box-shadow: inset 0 0 0 1px var(--danger); }
+.symptom--urgent.is-on .symptom__icon { background: var(--danger); color: #fff; }
+.symptom--urgent.is-on::after { background-color: var(--danger); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 12 4 4 8-8'/%3E%3C/svg%3E"); }

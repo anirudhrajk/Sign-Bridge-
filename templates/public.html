@@ -11,6 +11,8 @@
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/signbridge-reactbits.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/molten-metal.css') }}">
   <script>
     try {
       ['contrast', 'motion', 'large'].forEach(k => {
@@ -22,6 +24,7 @@
   </script>
 </head>
 <body>
+<div id="moltenBg" class="sb-molten" aria-hidden="true"></div>
 {% include "_icons.html" %}
 
 
@@ -32,6 +35,8 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/molten-metal.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/signbridge-reactbits.js') }}" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

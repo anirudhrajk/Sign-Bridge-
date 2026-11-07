@@ -107,10 +107,13 @@
       say('Camera blocked');
       SignBridge.toast('Allow camera access in your browser to sign.');
       startBtn.disabled = false;
+      window.dispatchEvent(new CustomEvent('sb:camera', { detail: { stream: null, blocked: true } }));
       return;
     }
     video.srcObject = stream;
     await video.play();
+    // The video call page sends this same camera picture to the doctor.
+    window.dispatchEvent(new CustomEvent('sb:camera', { detail: { stream } }));
     if (!holistic) {
       say('Loading hand tracking (first time takes a few seconds)…');
       holistic = new Holistic({ locateFile: f => `/static/vendor/holistic/${f}` });
@@ -151,6 +154,7 @@
     stream?.getTracks().forEach(t => t.stop());
     stream = null;
     video.srcObject = null;
+    window.dispatchEvent(new CustomEvent('sb:camera', { detail: { stream: null } }));
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     say('Camera off');
     empty.hidden = false;
@@ -381,6 +385,7 @@
 
   function renderTaught() {
     const list = $('taughtList');
+    if (!list) return;   // pages without the teaching card (the video call)
     const groups = {};
     taught.forEach(t => (groups[t.label] ||= []).push(t));
     const labels = Object.keys(groups).sort();
@@ -452,13 +457,14 @@
     }
   }
 
-  $('teachStart').addEventListener('click', () => startTeach());
-  $('teachWord').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); startTeach(); } });
-  $('teachCancel').addEventListener('click', () => { teach = null; $('teachProgress').hidden = true; loadTaught(); });
+  $('teachStart')?.addEventListener('click', () => startTeach());
+  $('teachWord')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); startTeach(); } });
+  $('teachCancel')?.addEventListener('click', () => { teach = null; $('teachProgress').hidden = true; loadTaught(); });
 
   // ---------- show me how + practice ----------
   const learnCard = $('learnCard'), learnAvatar = $('learnAvatar');
   function showHow(name, label) {
+    if (!learnCard) return;
     learnCard.hidden = false;
     $('learnWord').textContent = `“${label}”`;
     practice = { name, label };
@@ -469,7 +475,7 @@
     if (learnAvatar.ready) play(); else learnAvatar.addEventListener('avatar:ready', play, { once: true });
     learnCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
-  $('learnClose').addEventListener('click', () => { learnCard.hidden = true; practice = null; });
+  $('learnClose')?.addEventListener('click', () => { learnCard.hidden = true; practice = null; });
 
   function showPractice(top) {
     const note = $('practiceNote');
@@ -515,6 +521,7 @@
   // ---------- index of known signs ----------
   function buildIndex(m) {
     const host = $('signIndex'), search = $('signSearch');
+    if (!host) return;   // pages without the sign list (the video call)
     $('signCount').textContent = `· ${m.classes.length} words`;
     const groups = {};
     m.classes.forEach((c, i) => { (groups[m.categories[i]] ||= []).push([m.labels[i], c]); });

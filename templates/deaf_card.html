@@ -1,37 +1,157 @@
 {% extends "base.html" %}
 {% block title %}My Deaf patient card · SignBridge{% endblock %}
 {% block page_title %}My Deaf patient card{% endblock %}
-{% block page_sub %}Show this screen at reception or to any staff member.{% endblock %}
+{% block page_sub %}Show this card at reception or to any staff member. Tap it to see the back.{% endblock %}
 {% block content %}
-<article class="deaf-card" aria-label="Deaf patient card">
-  <div class="deaf-card__head">
-    <svg class="icon" style="width:44px;height:44px"><use href="#i-hand"/></svg>
-    <div>
-      <h2>I am Deaf.</h2>
-      <p>I use <strong>{{ languages.get(lang, 'sign language') }}</strong>. My name is <strong>{{ current_user.display_name }}</strong>.</p>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reflective-card.css') }}">
+{% set lang_name = languages.get(lang, 'Sign language') %}
+<section class="id-page" data-name="{{ current_user.display_name }}" data-lang="{{ lang_name }}">
+  <div class="id-flip" id="idFlip" role="button" tabindex="0" aria-pressed="false"
+       aria-label="SignBridge card for {{ current_user.display_name }}, Deaf, {{ lang_name }}. Press to turn it over and show the QR code for staff.">
+    <div class="id-flip__inner">
+      <div class="id-flip__face id-flip__front">
+      <div class="reflective-card" data-reflective-card
+           data-theme="auto" data-status-color="#d4d4d8" data-video-src="{{ url_for('static', filename='videos/reflection.mp4') }}" data-webcam="false"
+           data-tint="#ffffff" data-metalness="1" data-roughness="0.3" data-blur-strength="6" data-shine="1" data-glare="0.5"
+           style="--rc-presence:0;--rc-lift:14px">
+        <div class="reflective-card__body">
+          <canvas class="reflective-card__canvas" aria-hidden="true"></canvas>
+          <div class="reflective-card__content">
+            <div class="reflective-card__header">
+              <span class="reflective-card__badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M18.9905 19H19M18.9905 19C18.3678 19.6175 17.2393 19.4637 16.4479 19.4637C15.4765 19.4637 15.0087 19.6537 14.3154 20.347C13.7251 20.9374 12.9337 22 12 22C11.0663 22 10.2749 20.9374 9.68457 20.347C8.99128 19.6537 8.52349 19.4637 7.55206 19.4637C6.76068 19.4637 5.63218 19.6175 5.00949 19C4.38181 18.3776 4.53628 17.2444 4.53628 16.4479C4.53628 15.4414 4.31616 14.9786 3.59938 14.2618C2.53314 13.1956 2.00002 12.6624 2 12C2.00001 11.3375 2.53312 10.8044 3.59935 9.73817C4.2392 9.09832 4.53628 8.46428 4.53628 7.55206C4.53628 6.76065 4.38249 5.63214 5 5.00944C5.62243 4.38178 6.7556 4.53626 7.55208 4.53626C8.46427 4.53626 9.09832 4.2392 9.73815 3.59937C10.8044 2.53312 11.3375 2 12 2C12.6625 2 13.1956 2.53312 14.2618 3.59937C14.9015 4.23907 15.5355 4.53626 16.4479 4.53626C17.2393 4.53626 18.3679 4.38247 18.9906 5C19.6182 5.62243 19.4637 6.75559 19.4637 7.55206C19.4637 8.55858 19.6839 9.02137 20.4006 9.73817C21.4669 10.8044 22 11.3375 22 12C22 12.6624 21.4669 13.1956 20.4006 14.2618C19.6838 14.9786 19.4637 15.4414 19.4637 16.4479C19.4637 17.2444 19.6182 18.3776 18.9905 19Z" stroke="currentColor" stroke-width="1.8"/><path d="M9 12.8929C9 12.8929 10.2 13.5447 10.8 14.5C10.8 14.5 12.6 10.75 15 9.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg>
+                Deaf patient
+              </span>
+              <span class="reflective-card__status"><span class="reflective-card__dot"></span>Uses {{ lang|upper }}</span>
+            </div>
+            <div class="reflective-card__identity">
+              <h3 class="reflective-card__name">{{ current_user.display_name }}</h3>
+              <p class="reflective-card__role">Deaf · {{ languages.get(lang, 'Sign language') }}</p>
+            </div>
+            <div class="reflective-card__footer">
+              <div class="reflective-card__id">
+                <span class="reflective-card__label">SignBridge ID</span>
+                <span class="reflective-card__value">SB {{ '%06d' % current_user.id }}</span>
+              </div>
+              <span class="reflective-card__tile">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7.42857 3.36201C11.3996 0.664089 17.136 2.12432 19.2301 6.41803M10.8571 21.9236C15.5839 22.5822 20 18.8952 20 14.2103V10.3333M7.42857 20.6058C5.35602 19.1977 4 16.8583 4 14.2103V9.75757C4 8.57285 4.27144 7.44988 4.75704 6.44444" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/><path d="M16 13.8C16 16.1196 14.2091 18 12 18C9.79086 18 8 16.1196 8 13.8V10.2C8 9.55584 8.13811 8.94555 8.38493 8.4M12 6C14.2091 6 16 7.8804 16 10.2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/><path d="M12 10.5L12 13.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/></svg>
+              </span>
+            </div>
+          </div>
+          <span class="reflective-card__rim"></span>
+        </div>
+        <video class="reflective-card__media" muted loop playsinline crossorigin="anonymous" aria-hidden="true"></video>
+        <video class="reflective-card__media" muted playsinline aria-hidden="true"></video>
+      </div>
+      </div>
+      <div class="id-flip__face id-flip__back" aria-hidden="true">
+        <div class="id-back__head"><span>For clinic staff</span><span class="id-back__muted">Scan me</span></div>
+        <div class="id-back__qr" role="img" aria-label="QR code that opens this patient's history for signed-in staff">{{ qr_svg|safe }}</div>
+        <p class="id-back__note">Scan with your phone and sign in to SignBridge to see my visit history. This code works for {{ qr_hours }} hours.</p>
+        <p class="id-back__label">How to talk with me</p>
+        <ul class="id-back__tips">
+          <li>Don't call my name. Tap my shoulder or wave.</li>
+          <li>Face me in good light. Use short sentences.</li>
+          <li>Book an interpreter for important talks.</li>
+        </ul>
+      </div>
     </div>
   </div>
-  <ol class="deaf-card__tips">
-    <li><strong>Please don't call my name.</strong> I can't hear it. Tap my shoulder, wave, or call me with SignBridge.</li>
-    <li><strong>Face me when you talk</strong>, in good light. Don't cover your mouth.</li>
-    <li><strong>Use SignBridge or write it down.</strong> Short, simple sentences are best.</li>
-    <li><strong>Please book a sign language interpreter</strong> for important talks: diagnosis, surgery, consent, and going home.</li>
-    <li><strong>Check that I understood.</strong> Ask me to show or tell you back. Nodding does not always mean yes.</li>
-    <li><strong>In an emergency</strong>, show me, point, and use the emergency screen.</li>
-  </ol>
-  <p class="deaf-card__foot">SignBridge · Deaf-friendly care</p>
-</article>
-<div class="translator__controls mt" style="justify-content:center">
-  <button class="btn btn--primary" type="button" id="needInterpreter"><svg class="icon"><use href="#i-users"/></svg> Ask staff for an interpreter</button>
-  <button class="btn btn--ghost" type="button" onclick="window.print()">Print card</button>
-</div>
+  <p class="id-page__hint muted small">Tap the card to turn it over.</p>
+
+  <div class="translator__controls id-page__actions">
+    <button class="btn btn--primary" type="button" id="shareCard" aria-expanded="false" aria-controls="shareConfirm"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg> Share my card</button>
+    <button class="btn btn--ghost" type="button" id="flipCard">Show QR code</button>
+    <button class="btn btn--ghost" type="button" id="needInterpreter"><svg class="icon"><use href="#i-users"/></svg> Ask staff for an interpreter</button>
+  </div>
+
+  <div class="card note id-confirm" id="shareConfirm" hidden>
+    <p><strong>Share your card with clinic staff?</strong> They will see your name, your sign language, and all your past visits and messages for the next 24 hours.</p>
+    <div class="id-confirm__actions">
+      <button class="btn btn--primary" type="button" id="shareYes">Yes, share</button>
+      <button class="btn btn--ghost" type="button" data-close="shareConfirm">Cancel</button>
+    </div>
+  </div>
+  <p class="id-page__status small" id="shareStatus" aria-live="polite">{% if shared_at %}<svg class="icon"><use href="#i-check"/></svg> Shared. Staff can see your history for 24 hours from when you shared.{% endif %}</p>
+
+  <section class="card id-order" aria-labelledby="orderTitle">
+    <span class="id-order__icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 16c.6-1.5 1.7-2.2 3-2.2s2.4.7 3 2.2M14 10h4.5M14 13.5h3"/></svg></span>
+    <div class="id-order__text">
+      <h2 id="orderTitle">Order a physical card</h2>
+      <p class="muted">A printed card for your wallet, with your name and sign language. Clinic staff print it and you collect it at reception.</p>
+    </div>
+    <button class="btn btn--ghost" type="button" id="orderCard" aria-expanded="false" aria-controls="orderConfirm">Order a physical card</button>
+  </section>
+  <div class="card note id-confirm" id="orderConfirm" hidden>
+    <p><strong>Ask the clinic to print a card for you?</strong> Staff get your request and tell you when it is ready to collect at reception.</p>
+    <div class="id-confirm__actions">
+      <button class="btn btn--primary" type="button" id="orderYes">Yes, order my card</button>
+      <button class="btn btn--ghost" type="button" data-close="orderConfirm">Cancel</button>
+    </div>
+  </div>
+</section>
 {% endblock %}
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/reflective-card.js') }}" defer></script>
 <script>
-document.getElementById('needInterpreter').addEventListener('click', async e => {
-  e.currentTarget.disabled = true;
-  if (await SignBridge.sendMessage('I am Deaf. Please book a sign language interpreter for me.', 'request')) SignBridge.toast('Staff have been asked for an interpreter.');
-  else e.currentTarget.disabled = false;
-});
+(() => {
+  const flip = document.getElementById('idFlip');
+  const back = flip.querySelector('.id-flip__back');
+  const flipBtn = document.getElementById('flipCard');
+  const turn = on => {
+    flip.classList.toggle('is-flipped', on);
+    flip.setAttribute('aria-pressed', on);
+    back.setAttribute('aria-hidden', !on);
+    flipBtn.textContent = on ? 'Show front of card' : 'Show QR code';
+  };
+  const toggle = () => turn(!flip.classList.contains('is-flipped'));
+  flip.addEventListener('click', toggle);
+  flip.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+  });
+  flipBtn.addEventListener('click', toggle);
+
+  // Share and order both ask first, in a small panel under the button.
+  const panel = (btnId, panelId) => {
+    const btn = document.getElementById(btnId), box = document.getElementById(panelId);
+    btn.addEventListener('click', () => { box.hidden = !box.hidden; btn.setAttribute('aria-expanded', !box.hidden); });
+    box.querySelector('[data-close]').addEventListener('click', () => { box.hidden = true; btn.setAttribute('aria-expanded', false); btn.focus(); });
+    return { btn, box };
+  };
+  const share = panel('shareCard', 'shareConfirm');
+  const order = panel('orderCard', 'orderConfirm');
+  const page = document.querySelector('.id-page');
+  const name = page.dataset.name, lang = page.dataset.lang;
+
+  document.getElementById('shareYes').addEventListener('click', async e => {
+    const yes = e.currentTarget;
+    yes.disabled = true;
+    const ok = await SignBridge.sendMessage(`I am sharing my SignBridge card. I am Deaf and use ${lang}. Please open my full history from this conversation.`, 'card');
+    yes.disabled = false;
+    if (!ok) return;
+    share.box.hidden = true;
+    share.btn.setAttribute('aria-expanded', false);
+    document.getElementById('shareStatus').innerHTML = '<svg class="icon"><use href="#i-check"/></svg> Shared. Staff can see your history for 24 hours from now.';
+    SignBridge.toast('Your card was shared with clinic staff.');
+  });
+
+  document.getElementById('orderYes').addEventListener('click', async e => {
+    const yes = e.currentTarget;
+    yes.disabled = true;
+    const ok = await SignBridge.sendMessage(`Please print a SignBridge card for me. Name: ${name}. I am Deaf and use ${lang}. I will collect it at reception.`, 'request');
+    yes.disabled = false;
+    if (!ok) return;
+    order.box.hidden = true;
+    order.btn.disabled = true;
+    order.btn.textContent = 'Card ordered';
+    SignBridge.toast('Card ordered. Staff will tell you when it is ready.');
+  });
+
+  document.getElementById('needInterpreter').addEventListener('click', async e => {
+    e.currentTarget.disabled = true;
+    if (await SignBridge.sendMessage('I am Deaf. Please book a sign language interpreter for me.', 'request')) SignBridge.toast('Staff have been asked for an interpreter.');
+    else e.currentTarget.disabled = false;
+  });
+})();
 </script>
 {% endblock %}

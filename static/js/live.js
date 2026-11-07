@@ -8,7 +8,7 @@
   const avatar = isPatient ? document.getElementById('patientAvatar') : null;
   let lastSignature = null, lastSeenId = null, lastCall = null;
 
-  const SOURCE_LABEL = { sign: 'Signed', speech: 'Spoken', text: 'Typed', emergency: 'Emergency', pain: 'Pain report', symptoms: 'Symptoms', request: 'Request' };
+  const SOURCE_LABEL = { sign: 'Signed', speech: 'Spoken', text: 'Typed', emergency: 'Emergency', pain: 'Pain report', symptoms: 'Symptoms', request: 'Request', card: 'Card shared' };
   const ANSWER_LABEL = { understood: '✓ Understood', repeat: 'Asked to repeat', simpler: 'Asked for simpler words' };
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 

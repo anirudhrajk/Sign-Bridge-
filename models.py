@@ -127,3 +127,31 @@ class CustomSign(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     author = db.relationship("User", foreign_keys=[created_by])
+
+
+class VideoCall(db.Model):
+    """A patient's video call to a doctor. The video goes browser to browser (WebRTC);
+    the server only passes the connection details between them and records the call."""
+    __tablename__ = "video_calls"
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey("sessions.id"), nullable=False, index=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    status = db.Column(db.String(12), default="ringing")   # ringing|active|ended
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    answered_at = db.Column(db.DateTime)
+    ended_at = db.Column(db.DateTime)
+
+    patient = db.relationship("User", foreign_keys=[patient_id])
+    doctor = db.relationship("User", foreign_keys=[doctor_id])
+
+
+class CallSignal(db.Model):
+    """One connection message (offer, answer or network candidate) from one side of a call to the other."""
+    __tablename__ = "call_signals"
+    id = db.Column(db.Integer, primary_key=True)
+    call_id = db.Column(db.Integer, db.ForeignKey("video_calls.id"), nullable=False, index=True)
+    sender_role = db.Column(db.String(10), nullable=False)   # patient|doctor
+    kind = db.Column(db.String(12), nullable=False)          # offer|answer|ice
+    payload = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

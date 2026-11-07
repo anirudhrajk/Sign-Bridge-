@@ -12,6 +12,7 @@ from services.dictionary import get_local_seed
 from services.audit import log_action
 from services.sign_recognition import available_languages, resolve_language, avatar_language, NAMES as SIGN_LANGUAGE_NAMES
 from services.consent import consent_status, has_consent
+from services import patient_card
 from datetime import datetime, timedelta
 
 views_bp = Blueprint("views", __name__)
@@ -73,6 +74,29 @@ def together():
     return render_template("together.html", lang="isl", avatar_lang="isl", languages=[])
 
 
+@views_bp.route("/face-to-face")
+@login_required
+def video_call():
+    """Face-to-face over video: the patient signs, the doctor reads it in English; the doctor speaks
+    or types, and the patient sees it signed. Patients call; doctors see who is waiting and answer."""
+    if current_user.role == "patient":
+        if not has_consent(current_user.id, "camera_capture"):
+            flash("Please grant camera consent first.", "warning")
+            return redirect(url_for("views.consent"))
+        lang = resolve_language(current_user.sign_language)
+        role = "patient"
+    elif current_user.role in ("doctor", "admin"):
+        lang, role = "isl", "doctor"
+    else:
+        abort(403)
+    try:
+        ice = json.loads(current_app.config["ICE_SERVERS"])
+    except (ValueError, TypeError):
+        ice = [{"urls": "stun:stun.l.google.com:19302"}]
+    return render_template("video_call.html", role=role, lang=lang, avatar_lang=avatar_language(lang),
+                           ice_servers=ice)
+
+
 @views_bp.route("/dashboard")
 @login_required
 def dashboard():
@@ -95,7 +119,9 @@ def patient_home():
         db.session.commit()
     messages = Message.query.filter_by(session_id=open_session.id).order_by(Message.created_at.desc()).limit(10).all()
     consent_camera = has_consent(current_user.id, "camera_capture")
-    return render_template("patient_home.html", session=open_session, messages=messages,
+    # The visit-summary folder shows up to six visits, newest first.
+    visits = Session.query.filter_by(patient_id=current_user.id).order_by(Session.created_at.desc()).limit(6).all()
+    return render_template("patient_home.html", session=open_session, messages=messages, visits=visits,
                            avatar_lang=avatar_language(current_user.sign_language),
                            emergency=get_default_phrases(), consent_camera=consent_camera)
 
@@ -133,8 +159,48 @@ def symptoms():
 @login_required
 def deaf_card():
     _require_role("patient")
+    # The QR code on the back of the card: a signed link that staff open after signing in.
+    qr_url = url_for("views.card_scan", token=patient_card.make_token(current_user.id), _external=True)
     return render_template("deaf_card.html", lang=resolve_language(current_user.sign_language),
-                           languages={x["code"]: x["name"] for x in available_languages()})
+                           languages={x["code"]: x["name"] for x in available_languages()},
+                           qr_svg=patient_card.qr_svg(qr_url), qr_hours=patient_card.QR_HOURS,
+                           shared_at=patient_card.last_share(current_user.id))
+
+
+@views_bp.route("/card/<token>")
+@login_required
+def card_scan(token):
+    """A doctor scanned a patient's card: unlock that patient's history in this browser, then open it."""
+    pid = patient_card.read_token(token)
+    if pid is None:
+        flash("That card code has expired. Ask the patient to open their card again and show the new code.", "error")
+        return redirect(url_for("views.dashboard"))
+    if current_user.role not in ("doctor", "admin"):
+        abort(403)
+    if not db.session.get(User, pid):
+        abort(404)
+    patient_card.grant_from_scan(pid)
+    log_action("card_scanned", f"patient {pid}")
+    return redirect(url_for("views.patient_history", patient_id=pid))
+
+
+@views_bp.route("/doctor/patient/<int:patient_id>/history")
+@login_required
+def patient_history(patient_id):
+    """Every visit and message of one patient, once they shared their card or it was scanned."""
+    _require_role("doctor", "admin")
+    patient = db.session.get(User, patient_id)
+    if not patient or patient.role != "patient":
+        abort(404)
+    if not patient_card.can_view_history(patient_id):
+        abort(403)
+    visits = Session.query.filter_by(patient_id=patient_id).order_by(Session.created_at.desc()).all()
+    messages = {v.id: Message.query.filter_by(session_id=v.id).order_by(Message.created_at).all() for v in visits}
+    urgent = sum(1 for ms in messages.values() for m in ms if m.source in ("emergency", "pain", "symptoms"))
+    log_action("history_viewed", f"patient {patient_id}")
+    return render_template("patient_history.html", patient=patient, visits=visits, messages=messages,
+                           urgent=urgent, lang_name=SIGN_LANGUAGE_NAMES.get(resolve_language(patient.sign_language), "Sign language"),
+                           shared_at=patient_card.last_share(patient_id), scanned=patient_card.scanned(patient_id))
 
 
 @views_bp.route("/visit/<int:session_id>/summary")
@@ -172,9 +238,9 @@ def doctor_home():
     urgent = {}
     for s in sessions:
         last = next((m for m in reversed(s.messages) if m.direction == "patient_to_doctor"), None)
-        if last and last.source in ("emergency", "pain", "symptoms", "request"):
+        if last and last.source in ("emergency", "pain", "symptoms", "request", "card"):
             urgent[s.id] = {"emergency": "Emergency", "pain": "Pain report", "symptoms": "Symptoms",
-                            "request": "Request"}[last.source]
+                            "request": "Request", "card": "Card shared"}[last.source]
     sessions.sort(key=lambda s: s.id not in urgent)
     return render_template("doctor_home.html", sessions=sessions, counts=counts, urgent=urgent)
 
@@ -188,7 +254,8 @@ def session_detail(session_id):
         s.doctor_id = current_user.id
         db.session.commit()
     messages = Message.query.filter_by(session_id=s.id).order_by(Message.created_at).all()
-    return render_template("session_detail.html", session=s, messages=messages)
+    return render_template("session_detail.html", session=s, messages=messages,
+                           history_ok=patient_card.can_view_history(s.patient_id))
 
 
 @views_bp.route("/doctor/voice")

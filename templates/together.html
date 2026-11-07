@@ -1,5 +1,5 @@
 {% extends "public.html" %}
-{% block title %}Face-to-face · SignBridge{% endblock %}
+{% block title %}One device together · SignBridge{% endblock %}
 {% block body %}
 <header class="public-nav">
   <a class="brand" href="{{ url_for('views.welcome') }}">
@@ -14,15 +14,19 @@
 
 <main class="landing together">
   <div class="together__intro">
-    <h1>Face-to-face</h1>
-    <p class="muted">One device between you. The patient signs, the doctor types, and the avatar signs back. Nothing leaves this device, and no internet is needed.</p>
+    <h1>One device together</h1>
+    <p class="muted">For when you are in the same room. The patient signs, the doctor types, and the avatar signs back. Nothing leaves this device, and no internet is needed.</p>
+    <a class="together__switch" href="{{ url_for('views.video_call') }}"><svg class="icon"><use href="#i-users"/></svg> Not in the same room? Video call a doctor</a>
   </div>
 
+  <h2 class="together__step"><span>1</span> The patient signs</h2>
   {% set send_label = 'Show to doctor' %}
   {% set message_label = 'Patient’s message' %}
+  {% set hide_learn = True %}
   {% include "_sign_panel.html" %}
 
-  <section class="translator mt">
+  <h2 class="together__step"><span>2</span> The doctor replies</h2>
+  <section class="translator">
     <div class="card">
       <header class="card__head"><h2>Doctor’s reply</h2><span class="chip chip--accent">Doctor</span></header>
       <div class="said" id="patientSaid" aria-live="polite"><small>Patient said</small><p class="empty">Nothing yet.</p></div>
@@ -48,7 +52,8 @@
     </div>
   </section>
 
-  <section class="card mt">
+  <h2 class="together__step"><span>3</span> The conversation so far</h2>
+  <section class="card">
     <header class="card__head"><h2>This conversation</h2>
       <div class="translator__controls" style="margin:0">
         <button class="btn btn--ghost btn--sm" type="button" onclick="window.print()">Print</button>

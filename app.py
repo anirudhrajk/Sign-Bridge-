@@ -79,7 +79,7 @@ def upgrade_schema():
             conn.execute(text("ALTER TABLE users ADD COLUMN sign_language VARCHAR(8) DEFAULT 'isl'"))
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users (google_sub)"))
     added = {
-        "sessions": {"called_at": "DATETIME", "call_room": "VARCHAR(40)"},
+        "sessions": {"called_at": "TIMESTAMP", "call_room": "VARCHAR(40)"},   # TIMESTAMP: SQLite and PostgreSQL
         "messages": {"understood": "VARCHAR(12)"},
     }
     for table, columns in added.items():
