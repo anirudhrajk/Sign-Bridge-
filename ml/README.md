@@ -18,7 +18,7 @@ transformer, repeated twice (`ml/train_v2.py`).
 |---|---|---|---|
 | **Webcam**: ASL Citizen, 11 Deaf/hard-of-hearing signers, 2,089 videos | **77.5%** | **90.8%** | 73% of signs, 92.2% of them right |
 | **Phone**: PopSign, 3 held-out signers, 1,316 videos (tested pair) | 90.5% | 97.7% | |
-| Kaggle/Google ISLR, 4 held-out signers (tested pair, sample of 4,075) | 70.2% | | |
+| Kaggle/Google ISLR, 4 held-out signers, 16,299 recordings (tested pair) | 69.6% | | |
 
 Progress on the webcam test: old v1 model not measured, first v2 pair 73.0%, then 75.8%, 76.1% with
 MediaPipe's full tracker, which the app now uses (a device under 10 tracked fps drops to lite by itself),
@@ -26,6 +26,25 @@ and 77.5% with three networks and 40 signers.
 On the Kaggle test the old v1 model scored 55.8% and the first v2 pair 64.2%.
 The browser pipeline was checked against Python on 199 of the webcam videos: 75.9% vs 76.5%.
 Every webcam signer scores 73-82%. A slow phone (10 fps) loses about 3.5 points.
+
+### Clinic words
+
+`ml/clinic_words.py` lists words a patient is likely to sign (82 of ASL's 250, 83 of ISL's 262), picked
+by meaning. The sign page counts each one 8 times more likely than other words. This is a boost, not a
+hard list: another word still wins when the sign is clearly that word, and the patient can switch it
+off. The boost was chosen on held-out Kaggle and phone signers. A higher boost stops the app adding
+other words by itself: on Kaggle, 56% of them at 8 but only 32% at 16.
+
+| ASL, 11 unseen webcam signers | No boost | Boost 8 |
+|---|---|---|
+| Clinic words (706 videos, 58 of the 82 words), right first time | 75.2% | **80.6%** |
+| Clinic words, in the top 4 | 89.2% | **92.5%** |
+| Clinic words added by the app itself | 71%, 89.8% right | **82%, 91.3% right** |
+| Other words (1,383 videos), right first time | 77.0% | 72.6% |
+| Other words added by the app itself | 72%, 93.3% right | 61%, 90.4% right |
+
+Teach a sign on held-out signers: recognised 67.5% to 71.5%, false fires 2.5% to 3.6%.
+ISL showed almost no change (98.2% to 98.6%), but that test does not use new signers.
 
 What the shipped ASL model is:
 - **Data**: Kaggle/Google ISLR (94,477 recordings, 21 signers) plus PopSign ASL v1.0 (CC BY 4.0):

@@ -25,6 +25,11 @@
   <div class="card translator__result">
     <header class="card__head"><h2>Your message</h2><span class="chip" id="modelStatus">Loading signs…</span></header>
 
+    <label class="clinic-row" id="clinicRow" hidden>
+      <input type="checkbox" id="clinicWords" checked>
+      <span><strong>Favour clinic words</strong><small class="muted">Words patients often need are easier to read. Turn off for everyday talk.</small></span>
+    </label>
+
     <div class="result-box" id="resultBox" aria-live="polite">
       <p class="empty">Signed words will appear here.</p>
     </div>

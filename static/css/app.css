@@ -596,6 +596,10 @@ html.a11y-motion *, html.a11y-motion *::before, html.a11y-motion *::after { anim
 .sign-meter { position: absolute; left: 12px; right: 12px; top: 12px; z-index: 2; height: 4px; border-radius: 99px; background: rgba(255,255,255,.2); overflow: hidden; }
 .sign-meter span { display: block; height: 100%; width: 0; background: var(--primary); transition: width .1s linear; }
 .result-box small { margin-top: 4px; font-size: .78rem; }
+.clinic-row { display: flex; align-items: flex-start; gap: 10px; margin: -4px 0 14px; cursor: pointer; }
+.clinic-row[hidden] { display: none; }
+.clinic-row input { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--primary); }
+.clinic-row span { display: flex; flex-direction: column; gap: 2px; }
 .alts { margin: -4px 0 14px; display: flex; flex-direction: column; gap: 8px; }
 .alts__list { display: flex; flex-wrap: wrap; gap: 6px; }
 .alt { cursor: pointer; font-size: .86rem; padding: 6px 12px; color: var(--text); border-color: var(--border-strong); font-family: inherit; }

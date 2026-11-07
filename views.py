@@ -39,7 +39,7 @@ SKIP_FROM_PRECACHE = {"README.md", "README.txt", "sw.js"}
 def _precache_files():
     static = Path(current_app.static_folder)
     globs = ["css/*.css", "js/*.js", "icons/*.png", "icon.svg", "manifest.webmanifest",
-             "models/*/model.json", "models/*/weights.bin", "models/*/model.onnx", "vendor/onnxruntime/*", "landing/avatar/signer.glb", "landing/vendor/signer3d.js", "landing/fonts/*", "signs/*/clips.json", "signs/*/clips.bin", "vendor/holistic/*"]
+             "models/*/model.json", "models/*/clinic.json", "models/*/weights.bin", "models/*/model.onnx", "vendor/onnxruntime/*", "landing/avatar/signer.glb", "landing/vendor/signer3d.js", "landing/fonts/*", "signs/*/clips.json", "signs/*/clips.bin", "vendor/holistic/*"]
     files = sorted({f for g in globs for f in static.glob(g) if f.is_file() and f.name not in SKIP_FROM_PRECACHE})
     return static, files
 

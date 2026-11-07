@@ -49,14 +49,48 @@
 
   SignModel.load(`/static/models/${lang}`).then(m => {
     model = m;
-    modelStatus.textContent = `${lang.toUpperCase()} · ${m.classes.length} signs ready`;
     modelStatus.classList.add('chip--soft');
-    buildIndex(m);
+    showModelStatus();
+    loadClinic(m);
     loadTaught();
     if (running) nowBtn.disabled = false;
   }).catch(() => {
     modelStatus.textContent = 'Signs unavailable';
     SignBridge.toast('Could not load the sign model. Typing still works.');
+  });
+
+  // ---------- clinic words ----------
+  // Words a patient is likely to sign are favoured, which makes them easier to read.
+  // Other words still win when the sign is clearly one of them, and the switch turns this off.
+  const CLINIC_KEY = 'signbridge.clinicWords';
+  const clinicSwitch = $('clinicWords'), clinicRow = $('clinicRow');
+  let clinic = null;      // {boost, groups: {name: [words]}}
+
+  function showModelStatus() {
+    const on = clinic && clinicSwitch.checked;
+    modelStatus.textContent = on
+      ? `${lang.toUpperCase()} · ${Object.values(clinic.groups).flat().length} clinic words first`
+      : `${lang.toUpperCase()} · ${model.classes.length} signs ready`;
+  }
+  function applyClinic() {
+    model.setClinic?.(clinic && clinicSwitch.checked ? Object.values(clinic.groups).flat() : null, clinic?.boost);
+    showModelStatus();
+  }
+  async function loadClinic(m) {
+    try {
+      const res = await fetch(`/static/models/${lang}/clinic.json`);
+      if (res.ok) clinic = await res.json();
+    } catch (e) { /* offline with no copy: every word counts the same */ }
+    if (clinic) {
+      try { clinicSwitch.checked = localStorage.getItem(CLINIC_KEY) !== 'off'; } catch (e) { /* keep it on */ }
+      clinicRow.hidden = false;
+      applyClinic();
+    }
+    buildIndex(m);
+  }
+  clinicSwitch.addEventListener('change', () => {
+    try { localStorage.setItem(CLINIC_KEY, clinicSwitch.checked ? 'on' : 'off'); } catch (e) { /* not saved */ }
+    applyClinic();
   });
 
   // ---------- camera ----------
@@ -484,9 +518,17 @@
     $('signCount').textContent = `· ${m.classes.length} words`;
     const groups = {};
     m.classes.forEach((c, i) => { (groups[m.categories[i]] ||= []).push([m.labels[i], c]); });
+    // Clinic groups come first, in the order they were written.
+    const clinicGroups = {};
+    Object.entries(clinic?.groups || {}).forEach(([g, list]) => {
+      clinicGroups[`Clinic: ${g}`] = list.map(w => [w, m.classes[m.labels.indexOf(w)]]);
+    });
+    const all = { ...clinicGroups, ...groups };
+    const order = [...Object.keys(clinicGroups), ...Object.keys(groups).sort()];
     const render = q => {
-      host.replaceChildren(...Object.keys(groups).sort().map(cat => {
-        const words = groups[cat].filter(([w]) => w.toLowerCase().includes(q)).sort((a, b) => a[0].localeCompare(b[0]));
+      host.replaceChildren(...order.map(cat => {
+        const words = all[cat].filter(([w]) => w.toLowerCase().includes(q));
+        if (!(cat in clinicGroups)) words.sort((a, b) => a[0].localeCompare(b[0]));
         if (!words.length) return document.createComment('');
         const sec = document.createElement('div');
         sec.className = 'sign-index__group';
