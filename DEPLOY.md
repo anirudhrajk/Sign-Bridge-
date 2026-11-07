@@ -30,8 +30,20 @@ python app.py              # http://localhost:5000
 
 The included `Dockerfile` runs on any container host (Render, Railway, Fly.io, Google Cloud
 Run, AWS). The host provides HTTPS. Set `SECRET_KEY`, `HTTPS=1`, and the Google keys as
-environment variables. For more than one server instance, use PostgreSQL instead of SQLite
-by setting `DATABASE_URL`.
+environment variables.
+
+**Set `DATABASE_URL` to a PostgreSQL database.** Without it, SignBridge keeps accounts and
+conversations in a SQLite file inside the container, and cloud hosts wipe that file on every
+deploy and restart: people who signed up cannot log in again and their chats are gone.
+
+1. Create a PostgreSQL database: on Render (*New → Postgres*, same region as the web
+   service), or on Neon or Supabase.
+2. Copy its connection string (on Render, the *Internal Database URL*). It starts with
+   `postgres://` or `postgresql://`; both work.
+3. In the web service's *Environment*, add `DATABASE_URL` with that value and save. The
+   service redeploys and creates its tables on first start.
+
+Keep the connection string secret: it is the database's password.
 
 ### Google sign-in in production
 

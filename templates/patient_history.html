@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ patient.display_name }}: history · SignBridge{% endblock %}
+{% block page_title %}{{ patient.display_name }}{% endblock %}
+{% block page_sub %}Full visit history, shared by the patient through their SignBridge card.{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn--ghost" type="button" onclick="window.print()"><svg class="icon"><use href="#i-book"/></svg> <span>Print or save as PDF</span></button>
+{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reflective-card.css') }}">
+{% set source_label = {'sign': 'Signed', 'speech': 'Spoken', 'text': 'Typed', 'emergency': 'Emergency', 'pain': 'Pain report',
+                       'symptoms': 'Symptoms', 'request': 'Request', 'card': 'Card shared'} %}
+<article class="card summary">
+  <header class="summary__head">
+    <div>
+      <p class="section-title">Deaf patient · SignBridge card</p>
+      <h2>{{ patient.display_name }}</h2>
+      <p class="muted">Deaf · {{ lang_name }} · SignBridge ID SB {{ '%06d' % patient.id }}</p>
+      <p class="muted small">
+        {% if shared_at %}Card shared by the patient at {{ shared_at.strftime('%d %b, %H:%M') }} UTC.{% endif %}
+        {% if scanned %}Opened from the card's QR code on this device.{% endif %}
+      </p>
+    </div>
+    <div class="summary__stats">
+      <span><strong>{{ visits|length }}</strong> visit{{ '' if visits|length == 1 else 's' }}</span>
+      <span><strong>{{ messages.values()|map('length')|sum }}</strong> messages</span>
+      <span><strong>{{ urgent }}</strong> emergency, pain or symptom reports</span>
+      <span>Member since {{ patient.created_at.strftime('%d %b %Y') if patient.created_at else '—' }}</span>
+    </div>
+  </header>
+
+  <section class="history-tips">
+    <h3>How to talk with {{ patient.display_name.split()[0] }}</h3>
+    <ul>
+      <li>Don't call their name. Tap their shoulder, wave, or use <strong>Call patient in</strong>.</li>
+      <li>Face them in good light and use short sentences, or SignBridge.</li>
+      <li>Book a sign language interpreter for diagnosis, surgery, consent and discharge.</li>
+    </ul>
+  </section>
+
+  {% for v in visits %}
+  {% set ms = messages[v.id] %}
+  <section class="history-visit">
+    <div class="history-visit__head">
+      <h3>{{ v.created_at.strftime('%d %B %Y') }}</h3>
+      <span class="chip {{ 'chip--soft' if v.status == 'open' }}">{{ 'Open now' if v.status == 'open' else 'Closed' }}</span>
+      <span class="muted small">{{ ms|length }} message{{ '' if ms|length == 1 else 's' }}{% if v.doctor %} · with {{ v.doctor.display_name }}{% endif %}</span>
+      <span class="history-visit__links">
+        {% if v.status == 'open' %}<a href="{{ url_for('views.session_detail', session_id=v.id) }}">Open conversation</a>{% endif %}
+        <a href="{{ url_for('views.visit_summary', session_id=v.id) }}">Visit summary</a>
+      </span>
+    </div>
+    <ul class="summary__list summary__list--full">
+      {% for m in ms %}
+      <li class="{{ 'is-doctor' if m.direction == 'doctor_to_patient' }} {{ 'is-urgent' if m.source in ('emergency', 'pain', 'symptoms') }}">
+        <small class="muted">{{ m.created_at.strftime('%H:%M') }} · {{ m.sender.display_name }} · {{ source_label.get(m.source, m.source) }}</small>
+        <p>{{ m.body }}</p>
+      </li>
+      {% else %}
+      <li class="empty">No messages in this visit.</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% else %}
+  <p class="empty">No visits yet.</p>
+  {% endfor %}
+  <p class="muted small mt">Times are in UTC. SignBridge is a communication aid, not a medical record. Confirm anything important with the patient and an interpreter.</p>
+</article>
+{% endblock %}

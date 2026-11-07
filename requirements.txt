@@ -7,3 +7,5 @@ Werkzeug==3.0.3
 Authlib==1.3.2
 requests>=2.31
 waitress==3.0.2
+segno==1.6.1
+psycopg[binary]==3.2.3   # PostgreSQL, for a database that survives deploys (DATABASE_URL)

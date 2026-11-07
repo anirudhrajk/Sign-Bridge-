@@ -1,0 +1,261 @@
+/* ReflectiveCard from React Bits (reactbits.dev/components/reflective-card), JS-CSS variant.
+   Styles copied unchanged; SignBridge additions at the end. */
+.reflective-card {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--rc-width);
+  height: var(--rc-height);
+  max-width: 100%;
+  perspective: 900px;
+  color: var(--rc-ink);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.reflective-card__body {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--rc-radius);
+  background: var(--rc-base);
+  box-shadow: var(--rc-shadow);
+  transform: translate3d(0, var(--rc-lift, 0px), 0) rotateX(var(--rc-rotate-x, 0deg)) rotateY(var(--rc-rotate-y, 0deg));
+  opacity: var(--rc-presence, 1);
+  isolation: isolate;
+  will-change: transform;
+}
+
+.reflective-card__canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.reflective-card__content {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  padding: var(--rc-pad);
+}
+
+.reflective-card__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.reflective-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--rc-ink);
+  font-weight: 500;
+}
+
+.reflective-card__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--rc-muted);
+}
+
+.reflective-card__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rc-status);
+}
+
+.reflective-card__identity {
+  margin-top: auto;
+}
+
+.reflective-card__name {
+  margin: 0;
+  color: var(--rc-ink);
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.reflective-card__role {
+  margin: 4px 0 0;
+  color: var(--rc-muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.reflective-card__footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.reflective-card__id {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reflective-card__label {
+  color: var(--rc-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.reflective-card__value {
+  overflow: hidden;
+  color: var(--rc-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reflective-card__tile {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--rc-tile-radius);
+  background: var(--rc-tile);
+  box-shadow: var(--rc-tile-shadow);
+  color: var(--rc-muted);
+}
+
+.reflective-card__tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px var(--rc-tile-edge),
+    inset 0 1px 0 var(--rc-tile-highlight);
+  pointer-events: none;
+}
+
+.reflective-card__rim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px var(--rc-rim),
+    inset 0 1px 0 var(--rc-rim-highlight);
+  pointer-events: none;
+}
+
+.reflective-card__media {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- SignBridge additions ---------- */
+/* Icons stand in for the component's Hugeicons (same MIT-licensed artwork, inlined). */
+.reflective-card svg { display: block; flex: none; }
+/* The card's own font and ink, so app-wide heading rules don't restyle it. */
+.reflective-card .reflective-card__name { font-family: inherit; letter-spacing: -0.02em; text-wrap: balance; }
+
+/* Deaf patient card page: the card centred, tap to turn it over. */
+.id-page { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.id-flip {
+  position: relative; width: 320px; max-width: 100%; height: 500px; perspective: 1400px;
+  border-radius: 24px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.id-flip:focus-visible { outline: 3px solid var(--primary); outline-offset: 6px; }
+.id-flip__inner {
+  position: relative; width: 100%; height: 100%; transform-style: preserve-3d;
+  transition: transform .8s cubic-bezier(.2, .75, .25, 1);
+}
+.id-flip.is-flipped .id-flip__inner { transform: rotateY(180deg); }
+.id-flip__face { position: absolute; inset: 0; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+.id-flip__back { transform: rotateY(180deg); }
+.id-flip.is-flipped .id-flip__front, .id-flip:not(.is-flipped) .id-flip__back { pointer-events: none; }
+
+/* The back: same size, radius, colours and rim as the metal front (the component's light and dark themes). */
+.id-flip__back {
+  box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 20px;
+  border-radius: 24px; color: #18181b; font-size: 13px; line-height: 1.4;
+  background: linear-gradient(160deg, #f3f3f5 0%, #e1e1e6 55%, #ececf0 100%);
+  box-shadow: 0 22px 44px -22px rgba(24, 24, 27, .3), 0 6px 16px -10px rgba(24, 24, 27, .16),
+              inset 0 0 0 1px rgba(24, 24, 27, .08), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+.id-back__head { display: flex; justify-content: space-between; font-weight: 500; line-height: 20px; }
+.id-back__muted, .id-back__note, .id-back__label { color: rgba(24, 24, 27, .62); }
+.id-back__qr {
+  align-self: center; box-sizing: border-box; width: 188px; padding: 10px; border-radius: 14px; background: #fff;
+  box-shadow: 0 4px 10px -5px rgba(24, 24, 27, .25), inset 0 0 0 1px rgba(24, 24, 27, .08);
+}
+.id-back__qr svg { display: block; width: 100%; height: auto; }
+.id-back__note { margin: 0; text-align: center; font-size: 12.5px; }
+.id-back__label { margin: auto 0 0; font-size: 12px; }
+.id-back__tips { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.id-back__tips li { position: relative; padding-left: 14px; }
+.id-back__tips li::before { content: ""; position: absolute; left: 2px; top: .55em; width: 5px; height: 5px; border-radius: 50%; background: #52525b; }
+:root:not([data-theme="light"]) .id-flip__back {
+  color: #f4f4f5;
+  background: linear-gradient(160deg, #2a2930 0%, #1d1c22 55%, #25242b 100%);
+  box-shadow: 0 22px 44px -20px rgba(0, 0, 0, .8), 0 6px 16px -8px rgba(0, 0, 0, .5),
+              inset 0 0 0 1px rgba(255, 255, 255, .07), inset 0 1px 0 rgba(255, 255, 255, .1);
+}
+:root:not([data-theme="light"]) :is(.id-back__muted, .id-back__note, .id-back__label) { color: rgba(244, 244, 245, .62); }
+:root:not([data-theme="light"]) .id-back__tips li::before { background: #d4d4d8; }
+
+.id-page__hint { margin: 0; }
+.id-page__actions { justify-content: center; margin-top: 4px; }
+.id-page__status { margin: 0; min-height: 1.4em; color: var(--success); display: flex; align-items: center; gap: 6px; }
+.id-page__status .icon { width: 16px; height: 16px; }
+.id-confirm { width: 100%; max-width: 560px; }
+.id-confirm p { margin: 0 0 12px; }
+.id-confirm__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.id-order { width: 100%; max-width: 640px; margin-top: 14px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.id-order__icon {
+  width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: var(--radius-sm, 8px);
+  background: var(--primary-soft); color: var(--primary);
+}
+.id-order__icon .icon { width: 24px; height: 24px; }
+.id-order__text { flex: 1 1 260px; min-width: 0; }
+.id-order__text h2 { font-size: 1.05rem; margin: 0 0 4px; }
+.id-order__text p { margin: 0; font-size: .9rem; }
+
+@media (prefers-reduced-motion: reduce) { .id-flip__inner { transition: none; } }
+html.a11y-motion .id-flip__inner { transition: none; }
+@media print { .id-page { display: none !important; } }
+
+/* Staff history page */
+.history-tips { padding: 14px 16px; margin-bottom: 18px; border-radius: var(--radius, 12px); background: var(--primary-soft); }
+.history-tips h3 { margin: 0 0 6px; font-size: 1rem; }
+.history-tips ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: .92rem; }
+.history-visit { padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--border); }
+.history-visit__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.history-visit__head h3 { margin: 0; font-size: 1.05rem; }
+.history-visit__links { margin-left: auto; display: flex; gap: 14px; font-size: .88rem; }
+.summary__list li.is-urgent p { color: var(--danger); font-weight: 600; }

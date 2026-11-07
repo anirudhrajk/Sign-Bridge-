@@ -19,7 +19,9 @@
       button.type = 'button';
       button.setAttribute('aria-expanded', 'false');
       button.setAttribute('aria-controls', id);
-      button.setAttribute('aria-label', `Show the role of ${person.name}`);
+      button.setAttribute('aria-label', window.SBProfile ? `Open the profile card of ${person.name}` : `Show the role of ${person.name}`);
+      if (window.SBProfile) button.setAttribute('aria-haspopup', 'dialog');
+      button.dataset.index = i;
       const img = document.createElement('img');
       img.src = person.photo;
       img.alt = person.name;
@@ -45,6 +47,8 @@
     list.addEventListener('click', event => {
       const button = event.target.closest('.person__photo');
       if (!button) return;
+      // Team card pop-up (spotlight-card.js); the small role note below stays as the fallback.
+      if (window.SBProfile) { window.SBProfile.open(team[Number(button.dataset.index)], button); return; }
       const person = button.closest('.person');
       close(person);
       const open = person.classList.toggle('is-open');
@@ -452,8 +456,11 @@
   function enter() {
     const loader = $('#loader');
     if (!hasGsap || reduce) { loader.remove(); return; }
+    const logo = $('#loaderLogo');
+    // The metal logo swells a little and fades, then the black loader dissolves into the page.
     gsap.timeline()
-      .to(loader, { clipPath: 'inset(0 0 100% 0)', duration: .9, ease: 'expo.inOut', onComplete: () => loader.remove() })
+      .to(logo, { scale: 1.12, autoAlpha: 0, duration: .75, ease: 'power2.in' })
+      .to(loader, { autoAlpha: 0, duration: .8, ease: 'power2.inOut', onComplete: () => { logo?._metallicPaint?.destroy(); loader.remove(); } }, '-=.35')
       .from('.mask > span', { yPercent: 108, duration: 1.05, ease: 'expo.out', stagger: .08 }, '-=.42')
       .from('[data-rise]', { autoAlpha: 0, y: 22, duration: .8, ease: 'power3.out', stagger: .1 }, '-=.75');
   }
@@ -463,15 +470,10 @@
     buildFaq();
     if (reduce) $$('#talkChat [data-step]').forEach(el => { el.style.opacity = 1; });
 
-    const count = $('#loaderCount'), line = $('#loaderLine');
-    const shown = { value: 0 };
-    const paint = () => {
-      count.textContent = Math.round(shown.value);
-      line.style.transform = `scaleX(${shown.value / 100})`;
-    };
-    const progress = p => {
-      if (hasGsap && !reduce) gsap.to(shown, { value: p * 100, duration: .3, overwrite: true, onUpdate: paint });
-    };
+    // The loader shows the SignBridge logo in liquid metal while the signer loads, for at least LOGO_MS.
+    const LOGO_MS = 3000;
+    const shownAt = performance.now();
+    const progress = () => {};
 
     let pack = null, avatar = null;
     const parts = [0, 0];
@@ -485,7 +487,8 @@
 
     if (document.fonts?.ready) await document.fonts.ready;
     if (hasGsap && !reduce) {
-      await new Promise(done => gsap.to(shown, { value: 100, duration: .35, overwrite: true, onUpdate: paint, onComplete: done }));
+      const left = LOGO_MS - (performance.now() - shownAt);
+      if (left > 0) await new Promise(done => setTimeout(done, left));
     }
     await startSigner(pack, avatar);
     if (hasGsap && !reduce) setupMotion();

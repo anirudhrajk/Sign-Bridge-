@@ -6,6 +6,12 @@
 <a class="btn btn--primary" href="{{ url_for('views.voice_translator') }}"><svg class="icon"><use href="#i-mic"/></svg> <span>Speak to patient</span></a>
 {% endblock %}
 {% block content %}
+{# Shows when patients are waiting on a video call (polled from /api/calls/waiting). #}
+<a class="vc-alert" id="vcAlert" href="{{ url_for('views.video_call') }}" hidden>
+  <span class="vc-alert__pulse" aria-hidden="true"></span>
+  <span><strong id="vcAlertText">A patient is waiting on video</strong><small>Open Face-to-face to answer.</small></span>
+  <span class="btn btn--primary btn--sm">Answer</span>
+</a>
 <section class="stat-grid">
   <div class="stat"><svg class="icon"><use href="#i-users"/></svg><div><small>Open conversations</small><span class="stat__value">{{ sessions|length }}</span></div></div>
   <div class="stat"><svg class="icon"><use href="#i-message"/></svg><div><small>Messages in open conversations</small><span class="stat__value">{{ counts.values()|sum }}</span></div></div>
@@ -31,4 +37,21 @@
   <p class="empty">No open conversations. One starts when a patient signs in.</p>
   {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const box = document.getElementById('vcAlert'), text = document.getElementById('vcAlertText');
+  const check = async () => {
+    try {
+      const { calls } = await fetch('/api/calls/waiting', { headers: { Accept: 'application/json' } }).then(r => r.json());
+      box.hidden = !calls.length;
+      if (calls.length) text.textContent = calls.length === 1 ? `${calls[0].patient} is waiting on video` : `${calls.length} patients are waiting on video`;
+    } catch (e) { /* try again */ }
+  };
+  check();
+  setInterval(check, 4000);
+})();
+</script>
 {% endblock %}

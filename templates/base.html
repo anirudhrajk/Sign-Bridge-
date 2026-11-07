@@ -10,6 +10,8 @@
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/signbridge-reactbits.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/molten-metal.css') }}">
   <script>
     try {
       ['contrast', 'motion', 'large'].forEach(k => {
@@ -21,6 +23,7 @@
   </script>
 </head>
 <body data-role="{{ current_user.role if current_user.is_authenticated else '' }}">
+<div id="moltenBg" class="sb-molten" aria-hidden="true"></div>
 {% include "_icons.html" %}
 
 {% from "_macros.html" import avatar %}
@@ -74,7 +77,7 @@
         {% endif %}
       {% endif %}
       <p class="nav__label">Reference</p>
-      <a class="nav__item nav__item--secondary {{ 'is-active' if ep == 'views.together' }}" href="{{ url_for('views.together') }}">
+      <a class="nav__item nav__item--secondary {{ 'is-active' if ep in ('views.video_call', 'views.together') }}" href="{{ url_for('views.video_call') }}">
         <svg class="icon"><use href="#i-users"/></svg> Face-to-face
       </a>
       <a class="nav__item {{ 'is-active' if ep == 'views.dictionary' }}" href="{{ url_for('views.dictionary') }}">
@@ -148,5 +151,7 @@
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 {% block scripts %}{% endblock %}
+<script src="{{ url_for('static', filename='js/molten-metal.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/signbridge-reactbits.js') }}" defer></script>
 </body>
 </html>

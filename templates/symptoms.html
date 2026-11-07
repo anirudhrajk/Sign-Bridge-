@@ -3,6 +3,7 @@
 {% block page_title %}How are you feeling?{% endblock %}
 {% block page_sub %}Tap what you have, then send. No signing or typing needed.{% endblock %}
 {% block content %}
+{% from "_symptom_icons.html" import symptom_icon %}
 <section class="symptoms">
   <div class="card">
     <p class="section-title">1 · Tap what you have <span class="muted" style="text-transform:none;letter-spacing:0">(tap more than one if needed)</span></p>
@@ -11,7 +12,7 @@
     <div class="symptom-grid">
       {% for s in group.symptoms %}
       <button type="button" class="symptom {{ 'symptom--urgent' if s.urgent }}" data-say="{{ s.say }}" data-urgent="{{ 1 if s.urgent else 0 }}" aria-pressed="false">
-        <span class="symptom__icon" aria-hidden="true">{{ s.emoji }}</span>
+        <span class="symptom__icon">{{ symptom_icon(s.id) }}</span>
         <span>{{ s.label }}</span>
       </button>
       {% endfor %}

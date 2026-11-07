@@ -9,17 +9,24 @@
   <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
   <link rel="preload" href="{{ url_for('static', filename='landing/fonts/hanken-grotesk-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ url_for('static', filename='landing/landing.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/signbridge-reactbits.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/molten-metal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/metallic-paint.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/spotlight-card.css') }}">
   <script>document.documentElement.classList.add('js');</script>
 </head>
 <body>
+<div id="moltenBg" class="sb-molten" aria-hidden="true"></div>
 
 <div class="loader" id="loader" aria-hidden="true">
-  <span class="loader__count" id="loaderCount">0</span>
-  <span class="loader__line"><i id="loaderLine"></i></span>
+  <div class="loader__logo" id="loaderLogo" data-metallic-paint
+       data-image-src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22240%22%20height%3D%22240%22%20viewBox%3D%220%200%20120%20120%22%20role%3D%22img%22%20aria-label%3D%22SignBridge%22%3E%0A%3Cmask%20id%3D%22w%22%20maskUnits%3D%22userSpaceOnUse%22%20x%3D%220%22%20y%3D%220%22%20width%3D%22120%22%20height%3D%22120%22%3E%3Crect%20width%3D%22120%22%20height%3D%22120%22%20fill%3D%22%23fff%22%2F%3E%3Cellipse%20cx%3D%2260%22%20cy%3D%2260%22%20rx%3D%2248%22%20ry%3D%2219%22%20transform%3D%22rotate%28-35%2060%2060%29%22%20fill%3D%22none%22%20stroke%3D%22%23000%22%20stroke-width%3D%2217%22%2F%3E%3C%2Fmask%3E%0A%3Cg%20fill%3D%22none%22%20stroke%3D%22%23000%22%3E%3Cellipse%20cx%3D%2260%22%20cy%3D%2260%22%20rx%3D%2248%22%20ry%3D%2219%22%20transform%3D%22rotate%2835%2060%2060%29%22%20stroke-width%3D%228.5%22%20mask%3D%22url%28%23w%29%22%2F%3E%3Cellipse%20cx%3D%2260%22%20cy%3D%2260%22%20rx%3D%2248%22%20ry%3D%2219%22%20transform%3D%22rotate%28-35%2060%2060%29%22%20stroke-width%3D%228.5%22%2F%3E%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%226.5%22%20stroke-width%3D%225%22%2F%3E%3C%2Fg%3E%0A%3C%2Fsvg%3E"
+       data-fallback-src="{{ url_for('static', filename='brand/signbridge-logo.svg') }}"></div>
 </div>
+<script src="{{ url_for('static', filename='js/metallic-paint.js') }}"></script>
 
 <header class="bar">
-  <a class="brand" href="#top">SignBridge</a>
+  <a class="brand" href="#top"><svg class="brand__logo" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="navChrome" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.3" stop-color="#9aa1a9"/><stop offset="0.52" stop-color="#eef1f4"/><stop offset="0.78" stop-color="#5d636b"/><stop offset="1" stop-color="#c9ced4"/></linearGradient><mask id="navWeave" maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="120"><rect width="120" height="120" fill="#fff"/><ellipse cx="60" cy="60" rx="48" ry="19" transform="rotate(-35 60 60)" fill="none" stroke="#000" stroke-width="10"/></mask></defs><g fill="none" stroke="url(#navChrome)"><ellipse cx="60" cy="60" rx="48" ry="19" transform="rotate(35 60 60)" stroke-width="4.5" mask="url(#navWeave)"/><ellipse cx="60" cy="60" rx="48" ry="19" transform="rotate(-35 60 60)" stroke-width="4.5"/><circle cx="60" cy="60" r="6" stroke-width="3.5"/></g></svg>SignBridge</a>
   {% if current_user.is_authenticated %}
     <a class="link" href="{{ url_for('views.dashboard') }}">Open SignBridge</a>
   {% else %}
@@ -43,7 +50,7 @@
         {% else %}
           <a class="btn btn--solid" href="{{ url_for('auth.register') }}">Get started</a>
         {% endif %}
-        <a class="btn" href="{{ url_for('views.together') }}">Try face-to-face mode</a>
+        <a class="btn" href="{{ url_for('views.video_call') }}">Try face-to-face mode</a>
       </div>
     </div>
 
@@ -128,7 +135,7 @@
 
   <section class="team" id="team" hidden>
     <h2>Meet the developers</h2>
-    <p class="muted">Select a photo to see each person's role.</p>
+    <p class="muted">Select a photo to open each person's card.</p>
     <ul class="people" id="people"></ul>
   </section>
 
@@ -172,6 +179,9 @@
 <script src="{{ url_for('static', filename='landing/vendor/ScrollTrigger.min.js') }}"></script>
 <script src="{{ url_for('static', filename='landing/vendor/signer3d.js') }}"></script>
 <script src="{{ url_for('static', filename='landing/team.js') }}"></script>
+<script src="{{ url_for('static', filename='js/spotlight-card.js') }}"></script>
 <script src="{{ url_for('static', filename='landing/landing.js') }}"></script>
+<script src="{{ url_for('static', filename='js/molten-metal.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/signbridge-reactbits.js') }}" defer></script>
 </body>
 </html>

@@ -4,34 +4,223 @@
 {% block page_sub %}Sign to your doctor, read their replies, or call for help.{% endblock %}
 {% block content %}
 
-<section class="stat-grid">
-  <a class="stat stat--primary" href="{{ url_for('views.sign_translator') }}">
-    <svg class="icon"><use href="#i-hand"/></svg>
-    <div><strong>Sign to your doctor</strong><small>Your signs become text for the doctor</small></div>
-    <svg class="icon arrow"><use href="#i-arrow"/></svg>
-  </a>
-  <a class="stat stat--warning" href="{{ url_for('views.emergency') }}">
-    <svg class="icon"><use href="#i-alert"/></svg>
-    <div><strong>Emergency</strong><small>Big buttons, one tap to send</small></div>
-    <svg class="icon arrow"><use href="#i-arrow"/></svg>
-  </a>
-  <a class="stat" href="{{ url_for('views.symptoms') }}">
-    <svg class="icon"><use href="#i-list"/></svg>
-    <div><strong>My symptoms</strong><small>Fever, cold, headache and more</small></div>
-    <svg class="icon arrow"><use href="#i-arrow"/></svg>
-  </a>
-  <a class="stat" href="{{ url_for('views.pain_report') }}">
-    <svg class="icon"><use href="#i-person"/></svg>
-    <div><strong>Where does it hurt?</strong><small>Tap the body and pain level</small></div>
-    <svg class="icon arrow"><use href="#i-arrow"/></svg>
-  </a>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/magic-bento.css') }}">
+{# MagicBento (React Bits): columns 4, row height 200, gap 12, radius 20, border glow, spotlight 300, click wave. #}
+{% macro bento_edges() %}<span class="magic-bento__rim"></span><span class="magic-bento__border"></span>{% endmacro %}
+<section class="magic-bento sb-bento" data-magic-bento data-columns="4" data-row-height="200" data-gap="12" data-radius="20"
+         data-enable-border-glow="true" data-enable-spotlight="true" data-spotlight-radius="300" data-click-effect="true"
+         data-autohide data-motion data-intro aria-label="What do you need?">
+
+  <div class="magic-bento__cell" data-col-span="2" data-row-span="2" style="grid-column: span 2; grid-row: span 2">
+    <a class="magic-bento__card" href="{{ url_for('views.sign_translator') }}">
+      <span class="magic-bento__light"></span>
+      <div class="magic-bento__content">
+        <div class="magic-bento__header"><span class="magic-bento__label">Start here</span></div>
+        <div class="magic-bento__visual" aria-hidden="true">
+          <div class="magic-bento__flow" style="--n: 4">
+            <div class="magic-bento__flow-trigger magic-bento__tile">
+              <span class="magic-bento__flow-glyph"><span class="sb-bento-live"></span></span>
+              <span class="magic-bento__flow-copy">
+                <span class="magic-bento__flow-name">Camera on</span>
+                <span class="magic-bento__flow-meta">Video stays on this device</span>
+              </span>
+            </div>
+            <ol class="magic-bento__steps magic-bento__well">
+              <span class="magic-bento__rail" aria-hidden="true"><span class="magic-bento__rail-fill"></span></span>
+              {% for label, note in [('Sign one word', 'you'), ('Read on this device', 'instant'), ('Check the words', 'you'), ('Send to your doctor', 'one tap')] %}
+              <li class="magic-bento__step" style="--i: {{ loop.index0 }}">
+                <span class="magic-bento__status">
+                  <span class="magic-bento__pending"></span>
+                  <span class="magic-bento__spinner"></span>
+                  <span class="magic-bento__done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 14L8.5 17.5L19 6.5"/></svg></span>
+                </span>
+                {{ label }}
+                <span class="magic-bento__step-time">{{ note }}</span>
+              </li>
+              {% endfor %}
+            </ol>
+          </div>
+        </div>
+        <div class="magic-bento__text">
+          <h3 class="magic-bento__title">Sign to your doctor</h3>
+          <p class="magic-bento__description">Your signs become text for the doctor.</p>
+        </div>
+      </div>
+      {{ bento_edges() }}
+    </a>
+  </div>
+
+  <div class="magic-bento__cell" data-col-span="2" style="grid-column: span 2">
+    <a class="magic-bento__card sb-bento--urgent" href="{{ url_for('views.emergency') }}">
+      <span class="magic-bento__light"></span>
+      <div class="magic-bento__content">
+        <div class="magic-bento__header"><span class="magic-bento__label">Urgent</span></div>
+        <div class="magic-bento__visual" aria-hidden="true">
+          <div class="sb-bento-pills">
+            {% for p in emergency[:4] %}<span class="sb-bento-pill">{{ p.text }}</span>{% endfor %}
+          </div>
+        </div>
+        <div class="magic-bento__text">
+          <h3 class="magic-bento__title">Emergency</h3>
+          <p class="magic-bento__description">Big buttons, one tap to send.</p>
+        </div>
+      </div>
+      {{ bento_edges() }}
+    </a>
+  </div>
+
+  <div class="magic-bento__cell">
+    <a class="magic-bento__card" href="{{ url_for('views.symptoms') }}">
+      <span class="magic-bento__light"></span>
+      <div class="magic-bento__content">
+        <div class="magic-bento__header">
+          <span class="magic-bento__icon"><svg class="icon"><use href="#i-list"/></svg></span>
+          <span class="magic-bento__label">Tap to choose</span>
+        </div>
+        <div class="magic-bento__visual" aria-hidden="true">
+          <div class="magic-bento__shield">
+            {% for s in ['Fever', 'Headache'] %}
+            <div class="magic-bento__setting magic-bento__tile">
+              <span class="magic-bento__setting-label">{{ s }}</span>
+              <span class="magic-bento__switch" style="--i: {{ loop.index0 }}"></span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="magic-bento__text">
+          <h3 class="magic-bento__title">My symptoms</h3>
+          <p class="magic-bento__description">Fever, cold, headache and more.</p>
+        </div>
+      </div>
+      {{ bento_edges() }}
+    </a>
+  </div>
+
+  <div class="magic-bento__cell">
+    <a class="magic-bento__card" href="{{ url_for('views.pain_report') }}">
+      <span class="magic-bento__light"></span>
+      <div class="magic-bento__content">
+        <div class="magic-bento__header">
+          <span class="magic-bento__icon"><svg class="icon"><use href="#i-person"/></svg></span>
+          <span class="magic-bento__label">Pain level</span>
+        </div>
+        <div class="magic-bento__visual" aria-hidden="true">
+          <div class="magic-bento__bars">
+            <div class="magic-bento__figure">
+              <span class="magic-bento__figure-value">0 to 10</span>
+              <span class="magic-bento__figure-note">pain scale</span>
+            </div>
+            <div class="magic-bento__bars-plot">
+              {% for h in [12, 20, 28, 36, 45, 54, 63, 72, 81, 90, 100] %}
+              <span class="magic-bento__bar" {{ 'data-peak' if loop.last }} style="--h: {{ h / 100 }}; --i: {{ loop.index0 }}"></span>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        <div class="magic-bento__text">
+          <h3 class="magic-bento__title">Where it hurts</h3>
+          <p class="magic-bento__description">Tap the body and pain level.</p>
+        </div>
+      </div>
+      {{ bento_edges() }}
+    </a>
+  </div>
+
+  <div class="magic-bento__cell">
+    <a class="magic-bento__card" href="{{ url_for('views.deaf_card') }}">
+      <span class="magic-bento__light"></span>
+      <div class="magic-bento__content">
+        <div class="magic-bento__header"><span class="magic-bento__label">Show staff</span></div>
+        <div class="magic-bento__visual" aria-hidden="true">
+          <div class="magic-bento__well sb-bento-id">
+            <span class="magic-bento__doc-title">{{ current_user.display_name }}</span>
+            <span class="magic-bento__flow-hash">SB {{ '%06d' % current_user.id }}</span>
+          </div>
+        </div>
+        <div class="magic-bento__text">
+          <h3 class="magic-bento__title">My Deaf card</h3>
+          <p class="magic-bento__description">Show it, or share your history.</p>
+        </div>
+      </div>
+      {{ bento_edges() }}
+    </a>
+  </div>
+
+  <div class="magic-bento__cell">
+    <div class="magic-bento__card" id="askInterpreter" role="button" tabindex="0" aria-label="Ask for an interpreter">
+      <span class="magic-bento__light"></span>
+      <div class="magic-bento__content">
+        <div class="magic-bento__header">
+          <span class="magic-bento__icon"><svg class="icon"><use href="#i-users"/></svg></span>
+          <span class="magic-bento__label">Request</span>
+        </div>
+        <div class="magic-bento__visual" aria-hidden="true">
+          <div class="magic-bento__shield">
+            <div class="magic-bento__setting magic-bento__tile">
+              <span class="magic-bento__setting-label" id="interpreterState">Not asked yet</span>
+              <span class="magic-bento__switch" id="interpreterSwitch" data-off></span>
+            </div>
+          </div>
+        </div>
+        <div class="magic-bento__text">
+          <h3 class="magic-bento__title">Interpreter</h3>
+          <p class="magic-bento__description">Ask staff to book one for you.</p>
+        </div>
+      </div>
+      {{ bento_edges() }}
+    </div>
+  </div>
+
+  <div class="magic-bento__cell" data-col-span="2" style="grid-column: span 2">
+    <a class="magic-bento__card" href="{{ url_for('views.visit_summary', session_id=session.id) }}" data-visits-open aria-haspopup="dialog">
+      <span class="magic-bento__light"></span>
+      <div class="magic-bento__content">
+        <div class="magic-bento__header"><span class="magic-bento__label">Today</span></div>
+        <div class="magic-bento__visual" aria-hidden="true">
+          <div class="magic-bento__collab magic-bento__well">
+            <span class="magic-bento__doc-title">Today's visit</span>
+            <div class="magic-bento__lines">
+              <span class="magic-bento__line" style="--w: 92%"></span>
+              <span class="magic-bento__line" style="--w: 70%">
+                <span class="magic-bento__selection" style="--from: 18%; --span: 58%"><span class="magic-bento__caret"></span></span>
+              </span>
+              <span class="magic-bento__line" style="--w: 84%"></span>
+            </div>
+            {% for name, x, y, path in [('You', '58%', '46%', 'magic-bento-path-a'), ('Doctor', '30%', '18%', 'magic-bento-path-b')] %}
+            <span class="magic-bento__cursor magic-bento__cursor--{{ 'primary' if loop.first else 'secondary' }}" style="--x: {{ x }}; --y: {{ y }}; --i: {{ loop.index0 }}; --path: {{ path }}">
+              <svg width="16" height="18" viewBox="0 0 16 18" aria-hidden="true"><path d="M2.2 1.6 13.4 9.9c.5.4.3 1.2-.4 1.3l-4.6.6-2.2 4.2c-.3.6-1.2.5-1.4-.1L1.2 2.4c-.2-.6.5-1.1 1-.8Z" stroke-width="1.2" stroke-linejoin="round"/></svg>
+              <span class="magic-bento__cursor-name">{{ name }}</span>
+            </span>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="magic-bento__text">
+          <h3 class="magic-bento__title">Visit summary</h3>
+          <p class="magic-bento__description">Everything said today, to read again at home.</p>
+        </div>
+      </div>
+      {{ bento_edges() }}
+    </a>
+  </div>
 </section>
 
-<section class="tool-row">
-  <a class="btn btn--ghost" href="{{ url_for('views.deaf_card') }}"><svg class="icon"><use href="#i-hand"/></svg> My Deaf patient card</a>
-  <button class="btn btn--ghost" type="button" id="askInterpreter"><svg class="icon"><use href="#i-users"/></svg> Ask for an interpreter</button>
-  <a class="btn btn--ghost" href="{{ url_for('views.visit_summary', session_id=session.id) }}"><svg class="icon"><use href="#i-book"/></svg> Visit summary</a>
-</section>
+{# Visit-summary folder (React Bits Folder): each page is one visit's chat. #}
+<template id="visitPapers">
+  {% for v in visits %}
+  <div class="sb-paper" data-href="{{ url_for('views.visit_summary', session_id=v.id) }}">
+    <span class="sb-paper__title">{{ "Today's visit" if v.id == session.id else 'Visit · ' ~ v.created_at.strftime('%d %b') }}</span>
+    <span class="sb-paper__meta">{{ v.messages|length }} message{{ '' if v.messages|length == 1 else 's' }}</span>
+    <div class="sb-paper__chat">
+      {% for m in v.messages[-5:] %}
+      <p class="sb-paper__msg sb-paper__msg--{{ 'you' if m.direction == 'patient_to_doctor' else 'doc' }}">{{ m.body|truncate(80) }}</p>
+      {% else %}
+      <p class="sb-paper__empty">Nothing said yet.</p>
+      {% endfor %}
+    </div>
+    <span class="sb-paper__open">Tap again to open the full chat</span>
+  </div>
+  {% endfor %}
+</template>
 
 <section class="two-col">
   <div class="card">
@@ -56,7 +245,6 @@
     <div class="quick-grid">
       {% for p in emergency[:6] %}
       <button class="quick" type="button" data-quick-phrase="{{ p.text }}">
-        <svg class="icon"><use href="#i-alert"/></svg>
         <span>{{ p.text }}</span>
       </button>
       {% endfor %}
@@ -74,11 +262,28 @@
 <script src="{{ url_for('static', filename='js/avatar-ui.js') }}"></script>
 <script>
 document.getElementById('avatarBadge').textContent = '{{ avatar_lang|upper }}';
-document.getElementById('askInterpreter').addEventListener('click', async e => {
-  e.currentTarget.disabled = true;
-  if (await SignBridge.sendMessage('I am Deaf. Please book a sign language interpreter for me.', 'request')) SignBridge.toast('Staff have been asked for an interpreter.');
-  else e.currentTarget.disabled = false;
-});
+(() => {
+  // Same request as before; the card's switch turns on once it is sent.
+  const ask = document.getElementById('askInterpreter');
+  const state = document.getElementById('interpreterState');
+  const sw = document.getElementById('interpreterSwitch');
+  let busy = false;
+  ask.addEventListener('click', async () => {
+    if (busy || ask.getAttribute('aria-disabled') === 'true') return;
+    busy = true;
+    if (await SignBridge.sendMessage('I am Deaf. Please book a sign language interpreter for me.', 'request')) {
+      SignBridge.toast('Staff have been asked for an interpreter.');
+      ask.setAttribute('aria-disabled', 'true');
+      state.textContent = 'Staff asked';
+      sw.removeAttribute('data-off');
+    }
+    busy = false;
+  });
+})();
 </script>
+<script src="{{ url_for('static', filename='js/magic-bento.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/folder.css') }}">
+<script src="{{ url_for('static', filename='js/folder.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/visits.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/live.js') }}" defer></script>
 {% endblock %}

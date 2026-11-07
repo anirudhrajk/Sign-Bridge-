@@ -53,6 +53,7 @@
   </div>
 </section>
 
+{% if not hide_learn %}
 <section class="translator mt learn">
   <details class="card sign-index" open>
     <summary><strong>Signs SignBridge knows</strong> <span class="muted small" id="signCount"></span></summary>
@@ -88,3 +89,4 @@
     </div>
   </div>
 </section>
+{% endif %}

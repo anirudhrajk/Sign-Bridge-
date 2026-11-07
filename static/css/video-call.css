@@ -1,0 +1,264 @@
+/* Face-to-face video call. Before the call: a stage and a side panel in the page.
+   During the call: the stage zooms out to fill the screen, over a blurred copy of the other person's
+   video (the soft edge), with small round controls, live captions and the signer. */
+
+/* ---------- before the call ---------- */
+.vc-lobby {
+  display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(280px, 1fr); gap: 18px; align-items: start;
+}
+.vc-slot {
+  position: relative; aspect-ratio: 16 / 10; border-radius: 22px; overflow: hidden;
+  background: #050507; box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 24px 60px -30px rgba(0, 0, 0, .8);
+}
+.vc-stage {
+  position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: inherit;
+  background: #050507; color: #f4f4f5; transform-origin: center;
+}
+.vc-remote {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0;
+  transition: opacity .5s ease;
+}
+.vc-self {
+  position: absolute; inset: 0; z-index: 2; overflow: hidden; border-radius: inherit;
+  transition: top .6s cubic-bezier(.2, .85, .2, 1), right .6s cubic-bezier(.2, .85, .2, 1),
+              width .6s cubic-bezier(.2, .85, .2, 1), height .6s cubic-bezier(.2, .85, .2, 1), border-radius .6s ease;
+}
+.vc-self .vc-camera { aspect-ratio: auto; width: 100%; height: 100%; margin: 0; border-radius: 0; background: #0b0b0e; }
+#vcLocal { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.vc-self .camera-empty { color: #d4d4d8; }
+
+.vc-top { position: absolute; top: 14px; left: 14px; z-index: 4; display: flex; gap: 8px; }
+.vc-pill {
+  display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: 999px;
+  background: rgba(0, 0, 0, .5); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); font-size: .84rem; color: #f4f4f5;
+}
+.vc-timer { color: #a1a1aa; font-variant-numeric: tabular-nums; }
+.vc-timer:empty { display: none; }
+.vc-dot { width: 8px; height: 8px; border-radius: 50%; background: #71717a; flex: none; }
+.vc-dot.is-wait { background: #f4b63f; animation: vc-blink 1.2s ease-in-out infinite; }
+.vc-dot.is-live { background: #f4f4f5; box-shadow: 0 0 0 0 rgba(244, 244, 245, .6); animation: vc-live 2s ease-out infinite; }
+@keyframes vc-blink { 50% { opacity: .35; } }
+@keyframes vc-live { 0% { box-shadow: 0 0 0 0 rgba(244, 244, 245, .55); } 100% { box-shadow: 0 0 0 9px rgba(244, 244, 245, 0); } }
+
+/* The signer stays laid out (so it can load) but only shows during a call. */
+.vc-signer {
+  position: absolute; left: 16px; bottom: 16px; z-index: 3; width: clamp(150px, 21%, 250px);
+  padding: 8px; border-radius: 18px; background: rgba(14, 14, 17, .62);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1);
+  opacity: 0; visibility: hidden; transform: translateY(12px);
+  transition: opacity .4s ease .3s, transform .5s cubic-bezier(.2, .85, .2, 1) .3s, visibility 0s linear .7s;
+}
+.vc-signer .avatar { gap: 6px; }
+.vc-signer .avatar__stage { aspect-ratio: 4 / 4.2; border-radius: 12px; background: rgba(255, 255, 255, .04); border: 0; }
+.vc-signer .avatar__caption { min-height: 0; gap: 4px; }
+.vc-signer .avatar__caption .muted { display: none; }
+.vc-signer .gloss { padding: 3px 8px; font-size: .74rem; }
+.vc-signer .avatar__controls { display: none; }
+
+.vc-caption {
+  position: absolute; left: 50%; bottom: 18px; z-index: 3; transform: translateX(-50%);
+  width: max-content; max-width: min(720px, calc(100% - 32px)); padding: 12px 18px; border-radius: 18px;
+  background: rgba(0, 0, 0, .58); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); text-align: center;
+}
+.vc-caption[hidden] { display: none; }
+.vc-caption__who { display: block; margin-bottom: 2px; color: #a1a1aa; font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.vc-caption p { margin: 0; color: #fff; font-size: clamp(1.05rem, 1.9vw, 1.45rem); font-weight: 600; line-height: 1.3; letter-spacing: -.01em; }
+.vc-caption.is-new { animation: vc-rise .45s cubic-bezier(.2, .85, .2, 1); }
+@keyframes vc-rise { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+/* Patient: the signer is bottom-left, so the caption takes the space to its right. */
+#translator .vc-caption { left: calc(clamp(150px, 21%, 250px) + 32px); right: 16px; width: auto; max-width: none; transform: none; }
+#translator .vc-caption.is-new { animation-name: vc-rise-plain; }
+@keyframes vc-rise-plain { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+.vc-ring {
+  position: absolute; inset: 0; z-index: 5; display: grid; place-content: center; justify-items: center; gap: 8px;
+  padding: 24px; text-align: center; background: rgba(0, 0, 0, .55);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.vc-ring[hidden] { display: none; }
+.vc-ring strong { font-size: 1.2rem; }
+.vc-ring > span:not(.vc-ring__pulse) { color: #a1a1aa; font-size: .92rem; max-width: 34ch; margin-bottom: 6px; }
+.vc-ring__pulse {
+  position: relative; display: grid; place-items: center; width: 72px; height: 72px; margin-bottom: 6px;
+  border-radius: 50%; background: #f4f4f5; color: #09090b;
+}
+.vc-ring__pulse::before, .vc-ring__pulse::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(244, 244, 245, .6);
+  animation: vc-ring 2s ease-out infinite;
+}
+.vc-ring__pulse::after { animation-delay: 1s; }
+.vc-ring__pulse .icon { width: 30px; height: 30px; }
+@keyframes vc-ring { from { transform: scale(1); opacity: 1; } to { transform: scale(1.9); opacity: 0; } }
+
+.vc-panel { display: grid; gap: 14px; }
+.vc-panel .card__head { margin-bottom: 0; }
+.vc-steps { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; counter-reset: vc; }
+.vc-steps li {
+  position: relative; padding-left: 36px; color: var(--muted); font-size: .92rem; line-height: 1.45; counter-increment: vc;
+}
+.vc-steps li strong { color: var(--text); font-weight: 600; }
+.vc-steps li::before {
+  content: counter(vc); position: absolute; left: 0; top: -1px; display: grid; place-items: center;
+  width: 24px; height: 24px; border-radius: 50%; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text); font-size: .78rem; font-weight: 700;
+}
+.vc-panel .cam-check, .vc-panel .clinic-row { margin: 0; }
+.vc-panel__actions { display: grid; gap: 10px; }
+.vc-panel__note { display: flex; gap: 8px; align-items: flex-start; margin: 0; }
+.vc-panel__note .icon { width: 14px; height: 14px; flex: none; margin-top: 3px; }
+.vc-panel__alt {
+  display: inline-flex; align-items: center; gap: 6px; justify-self: start;
+  color: var(--muted); font-size: .88rem; text-decoration: none; border-bottom: 1px solid transparent;
+}
+.vc-panel__alt:hover { color: var(--text); border-bottom-color: var(--border-strong); }
+.vc-panel__alt .icon { width: 14px; height: 14px; }
+.vc-queue { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.vc-queue .empty { padding: 18px 14px; border-radius: 14px; background: var(--surface-2); color: var(--muted); font-size: .9rem; text-align: center; }
+.vc-queue__item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px;
+  border-radius: 14px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border);
+  animation: vc-rise-plain .4s cubic-bezier(.2, .85, .2, 1);
+}
+.vc-queue__item div { display: grid; gap: 2px; min-width: 0; }
+.vc-queue__item small { color: var(--muted); }
+.vc-ended { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 18px; }
+.vc-ended[hidden] { display: none; }
+.vc-ended p { margin: 2px 0 0; }
+
+/* ---------- the call ---------- */
+html.vc-live, html.vc-live body { overflow: hidden; }
+html.vc-live .toast-stack { z-index: 220; }
+.vc-call {
+  position: fixed; inset: 0; z-index: 150; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 14px;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(14px, env(safe-area-inset-bottom));
+  overflow: hidden; background: #000; color: #f4f4f5;
+}
+.vc-call[hidden] { display: none; }
+.vc-backdrop {
+  position: absolute; inset: -60px; width: calc(100% + 120px); height: calc(100% + 120px); object-fit: cover;
+  filter: blur(48px) saturate(1.25) brightness(.5);
+}
+.vc-call__shade { position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 40%, transparent 30%, rgba(0, 0, 0, .55)); }
+.vc-call__slot { position: relative; z-index: 1; display: grid; place-items: center; min-height: 0; }
+
+.vc-stage.is-live {
+  width: min(100%, calc((100dvh - 240px) * 16 / 9)); height: auto; aspect-ratio: 16 / 9; border-radius: 28px;
+  background: rgba(0, 0, 0, .28);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .1), 0 30px 90px -20px rgba(0, 0, 0, .75), 0 0 120px 30px rgba(0, 0, 0, .35);
+}
+.vc-stage.is-live .vc-remote { opacity: 1; }
+.vc-stage.is-live .vc-self {
+  inset: auto; top: 16px; right: 16px; width: clamp(120px, 19%, 240px); height: auto; aspect-ratio: 4 / 3;
+  border-radius: 16px; box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .7), 0 0 0 1px rgba(255, 255, 255, .14);
+}
+.vc-stage.is-live .vc-self .camera-frame::after,
+.vc-stage.is-live .vc-self .camera-empty p,
+.vc-stage.is-live .sign-meter { display: none; }
+.vc-stage.is-live .vc-self .camera-status {
+  bottom: 6px; left: 6px; max-width: calc(100% - 12px); padding: 3px 8px; font-size: .66rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vc-stage.is-live .vc-signer { opacity: 1; visibility: visible; transform: none; transition-delay: .3s, .3s, 0s; }
+
+.vc-bottom { position: relative; z-index: 2; display: grid; justify-items: center; gap: 10px; width: min(100%, 880px); margin: 0 auto; }
+.vc-compose {
+  display: grid; gap: 8px; width: 100%; padding: 10px; border-radius: 22px;
+  background: rgba(16, 16, 20, .7); -webkit-backdrop-filter: blur(22px) saturate(1.2); backdrop-filter: blur(22px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1);
+}
+.vc-compose__words { display: grid; gap: 6px; }
+.vc-compose .vc-result { min-height: 0; margin: 0; padding: 4px 8px; border: 0; background: none; }
+.vc-compose .vc-result p { font-size: 1rem; }
+.vc-compose .vc-result p.empty { font-size: .86rem; color: #a1a1aa; }
+.vc-compose .alts { margin: 0; padding: 0 8px; }
+.vc-compose__row { display: flex; gap: 8px; align-items: flex-end; }
+.vc-compose textarea {
+  flex: 1; min-width: 0; min-height: 46px; max-height: 120px; field-sizing: content; resize: none;
+  padding: 12px 15px; border: 0; border-radius: 15px; background: rgba(255, 255, 255, .07);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); color: #f4f4f5; font: inherit; font-size: .98rem; line-height: 1.4;
+}
+.vc-compose textarea::placeholder { color: #71717a; }
+.vc-compose textarea:focus { outline: none; box-shadow: inset 0 0 0 1.5px rgba(244, 244, 245, .55); }
+.vc-compose__row .btn { min-height: 46px; border-radius: 15px; }
+.vc-compose__tools { display: flex; flex-wrap: wrap; gap: 2px; }
+.vc-compose__tools .btn { color: #a1a1aa; }
+.vc-quick { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.vc-quick::-webkit-scrollbar { display: none; }
+.vc-quick .chip { flex: none; white-space: nowrap; }
+#vcMic[aria-pressed="true"] { background: #f4f4f5; color: #09090b; }
+
+.vc-dock {
+  display: inline-flex; align-items: center; gap: 10px; padding: 8px; border-radius: 999px;
+  background: rgba(16, 16, 20, .7); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1);
+}
+.vc-btn {
+  position: relative; display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border: 0;
+  border-radius: 50%; background: rgba(255, 255, 255, .12); color: #f4f4f5; cursor: pointer;
+  transition: background .15s ease, color .15s ease, transform .12s ease;
+}
+.vc-btn:hover { background: rgba(255, 255, 255, .2); }
+.vc-btn:active { transform: scale(.94); }
+.vc-btn:focus-visible { outline: 2px solid #f4f4f5; outline-offset: 3px; }
+.vc-btn[hidden] { display: none; }
+.vc-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.vc-btn .vc-slash { display: none; }
+.vc-btn[aria-pressed="true"], .vc-btn.is-on { background: #f4f4f5; color: #09090b; }
+.vc-btn[aria-pressed="true"] .vc-slash { display: inline; }
+.vc-btn--end { width: 64px; border-radius: 999px; background: #ff3b30; color: #fff; }
+.vc-btn--end:hover { background: #ff5a51; }
+.vc-btn--end svg { fill: currentColor; stroke: none; }
+.vc-btn--sm { width: 34px; height: 34px; }
+.vc-btn--sm svg { width: 16px; height: 16px; }
+.vc-badge {
+  position: absolute; top: -2px; right: -2px; display: grid; place-items: center; min-width: 18px; height: 18px;
+  padding: 0 5px; border-radius: 9px; background: #ff3b30; color: #fff; font-size: .68rem; font-weight: 700;
+}
+.vc-badge[hidden] { display: none; }
+
+.vc-drawer {
+  position: absolute; top: max(18px, env(safe-area-inset-top)); right: 18px; bottom: var(--vc-bottom-space, 210px); z-index: 4;
+  display: flex; flex-direction: column; width: min(340px, calc(100% - 36px)); border-radius: 22px;
+  background: rgba(16, 16, 20, .82); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), 0 30px 60px -20px rgba(0, 0, 0, .7);
+  animation: vc-slide .4s cubic-bezier(.2, .85, .2, 1);
+}
+.vc-drawer[hidden] { display: none; }
+@keyframes vc-slide { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+.vc-drawer header { display: flex; align-items: center; justify-content: space-between; padding: 14px 14px 10px 18px; }
+.vc-log { flex: 1; display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 4px 14px 16px; overflow-y: auto; list-style: none; }
+.vc-log .empty { margin: auto; color: #71717a; font-size: .9rem; }
+.vc-log__item { max-width: 88%; padding: 9px 12px; border-radius: 14px; background: rgba(255, 255, 255, .08); }
+.vc-log__item.is-mine { align-self: flex-end; background: rgba(244, 244, 245, .9); color: #09090b; }
+.vc-log__item small { display: block; margin-bottom: 2px; opacity: .65; font-size: .7rem; }
+.vc-log__item p { margin: 0; font-size: .92rem; line-height: 1.4; }
+.vc-log__item .btn { margin-top: 4px; padding-left: 0; }
+
+/* ---------- phones and narrow windows ---------- */
+@media (max-width: 900px) {
+  .vc-lobby { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .vc-slot { aspect-ratio: 4 / 5; }
+  .vc-call { display: block; padding: 0; }
+  .vc-call__slot { position: absolute; inset: 0; }
+  .vc-stage.is-live { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; box-shadow: none; }
+  .vc-stage.is-live .vc-top { top: max(12px, env(safe-area-inset-top)); left: 12px; }
+  .vc-stage.is-live .vc-self { top: max(12px, env(safe-area-inset-top)); right: 12px; width: 28vw; aspect-ratio: 3 / 4; border-radius: 14px; }
+  .vc-stage.is-live .vc-signer { top: calc(max(12px, env(safe-area-inset-top)) + 46px); bottom: auto; left: 12px; width: 34vw; padding: 6px; border-radius: 14px; }
+  .vc-stage.is-live .vc-caption,
+  .vc-stage.is-live#translator .vc-caption { left: 10px; right: 10px; bottom: var(--vc-bottom-space, 210px); width: auto; max-width: none; transform: none; }
+  .vc-stage.is-live .vc-caption.is-new { animation-name: vc-rise-plain; }
+  .vc-bottom { position: absolute; left: 8px; right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: auto; gap: 8px; }
+  .vc-compose { padding: 8px; border-radius: 18px; }
+  .vc-compose__row .btn span { display: none; }
+  .vc-btn { width: 44px; height: 44px; }
+  .vc-btn--end { width: 58px; }
+  .vc-drawer { top: max(12px, env(safe-area-inset-top)); right: 8px; left: 8px; width: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vc-self, .vc-signer, .vc-remote { transition: none; }
+  .vc-dot, .vc-ring__pulse::before, .vc-ring__pulse::after, .vc-caption.is-new, .vc-drawer, .vc-queue__item { animation: none; }
+}
