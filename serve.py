@@ -57,6 +57,21 @@ def watchdog(port):
         time.sleep(CHECK_EVERY)
 
 
+def keep_awake(url, every):
+    """Visit our own public address so a free host never counts the site as idle and puts it to
+    sleep (Render's free plan sleeps after 15 minutes, and its wake-up has been unreliable).
+    The visit goes out through the host's front door, so it counts as a real visitor."""
+    target = url.rstrip("/") + "/healthz"
+    print(f"keep-awake: visiting {target} every {every // 60} min", flush=True)
+    while True:
+        time.sleep(every)
+        try:
+            with urllib.request.urlopen(target, timeout=60) as r:
+                r.read()
+        except Exception as e:  # noqa: BLE001
+            print(f"keep-awake: visit failed: {e!r}", flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default=os.environ.get("HOST", "0.0.0.0"))
@@ -74,6 +89,12 @@ def main():
     # out; there, Cloud Run's liveness probe on /healthz does the same job.
     if os.environ.get("WATCHDOG", "0" if on_cloud_run else "1") != "0":
         threading.Thread(target=watchdog, args=(args.port,), name="watchdog", daemon=True).start()
+    # Render sets RENDER_EXTERNAL_URL to the site's public address. KEEP_AWAKE_URL overrides it;
+    # KEEP_AWAKE_URL=0 turns this off.
+    awake = os.environ.get("KEEP_AWAKE_URL") or os.environ.get("RENDER_EXTERNAL_URL", "")
+    if awake.startswith("http"):
+        every = int(os.environ.get("KEEP_AWAKE_MINUTES", "9")) * 60
+        threading.Thread(target=keep_awake, args=(awake, every), name="keep-awake", daemon=True).start()
     print(f"SignBridge running on http://{args.host}:{args.port}  (put HTTPS in front for camera access)", flush=True)
     serve(app, host=args.host, port=args.port, threads=args.threads, channel_timeout=60)
 
