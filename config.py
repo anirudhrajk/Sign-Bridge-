@@ -8,6 +8,10 @@ def _database_url(url):
     """The database to use. Hosts hand out postgres:// or postgresql:// links; SQLAlchemy needs
     postgresql+psycopg:// to use the psycopg 3 driver. With no link, a local SQLite file."""
     url = (url or "").strip()
+    # Forgive a whole .env line or quotes pasted into the host's settings.
+    if url.startswith("DATABASE_URL="):
+        url = url[len("DATABASE_URL="):].strip()
+    url = url.strip("\"'").strip()
     if not url:
         return "sqlite:///signbridge.db"
     for prefix in ("postgres://", "postgresql://"):
