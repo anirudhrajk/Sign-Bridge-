@@ -24,7 +24,16 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _database_url(os.environ.get("DATABASE_URL", ""))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Cloud databases close idle connections: check each one before use, and renew them every 5 minutes.
-    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 300}
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 300, "pool_timeout": 10}
+    if SQLALCHEMY_DATABASE_URI.startswith("postgresql"):
+        # Never wait forever on the database: give up connecting after 10 s, notice a dead network
+        # link within ~15 s (keepalives, unacknowledged sends), and stop any query after 15 s.
+        SQLALCHEMY_ENGINE_OPTIONS["connect_args"] = {
+            "connect_timeout": 10,
+            "keepalives": 1, "keepalives_idle": 30, "keepalives_interval": 10, "keepalives_count": 3,
+            "tcp_user_timeout": 15000,
+            "options": "-c statement_timeout=15000 -c idle_in_transaction_session_timeout=30000",
+        }
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     # Set HTTPS=1 when the app is served over https:// (cookies are then never sent over http).
