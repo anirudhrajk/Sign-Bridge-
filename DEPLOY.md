@@ -45,6 +45,12 @@ deploy and restart: people who signed up cannot log in again and their chats are
 
 Keep the connection string secret: it is the database's password.
 
+**Set the health check.** In the web service's *Settings → Health Checks*, set the path to
+`/healthz`. It answers only when the app has a free worker and the database replies, so the
+host replaces a frozen instance. `serve.py` also runs its own watchdog: if `/healthz` fails three
+times in a row (about 90 s), it writes what each worker was stuck on to the log and exits, and
+the host starts a fresh copy. Set `WATCHDOG=0` to turn it off.
+
 ### Google sign-in in production
 
 In Google Cloud Console → Credentials → your OAuth client, add the production callback:

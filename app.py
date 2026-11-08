@@ -116,6 +116,18 @@ def create_app(config_class=Config):
     app.register_blueprint(views_bp)
     app.register_blueprint(api_bp)
 
+    @app.route("/healthz")
+    def healthz():
+        """For the host's health check and serve.py's watchdog: answers only if a worker is free
+        and the database replies."""
+        try:
+            db.session.execute(db.text("SELECT 1"))
+            return {"ok": True}
+        except Exception as e:  # noqa: BLE001
+            db.session.rollback()
+            app.logger.error("health check: database not answering: %s", e)
+            return {"ok": False}, 503
+
     @app.errorhandler(403)
     def forbidden(_e):
         return render_template("404.html"), 403
