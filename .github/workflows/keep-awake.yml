@@ -1,0 +1,26 @@
+# Keeps the free Render instance awake. Render's free plan puts the site to sleep after 15 minutes
+# without visitors, and waking it has been unreliable; a visit every 10 minutes stops it sleeping.
+# 24 h x 31 days = 744 h, inside Render's 750 free hours a month (one free service).
+name: Keep SignBridge awake
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Visit the health page
+        run: |
+          for i in 1 2 3; do
+            if curl -fsS -m 90 https://sign-bridge-mtja.onrender.com/healthz; then exit 0; fi
+            echo "attempt $i failed"; sleep 20
+          done
+          # Failing makes GitHub email the repository owner, so a down site gets noticed.
+          echo "::error::SignBridge did not answer. Restart it in Render (Manual Deploy > Restart service)."
+          exit 1
