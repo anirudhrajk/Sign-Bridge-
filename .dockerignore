@@ -5,3 +5,12 @@ __pycache__/
 *.pth
 .env
 .claude/
+research_notes/
+reports/
+SignBridge-Landing.html
+.brud/
+venv/
+env/
+static/_bench/
+static/uploads/
+*.db

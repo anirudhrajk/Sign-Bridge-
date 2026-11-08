@@ -66,7 +66,13 @@ def main():
 
     if app.config["SECRET_KEY"] in ("dev-secret-change-me", "change-me-in-production", ""):
         sys.exit("Refusing to start: set SECRET_KEY in .env to a long random value first (see DEPLOY.md).")
-    if os.environ.get("WATCHDOG", "1") != "0":
+    on_cloud_run = bool(os.environ.get("K_SERVICE"))   # Cloud Run sets K_SERVICE
+    if on_cloud_run and app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+        print("WARNING: no DATABASE_URL set. Accounts and chats live in a temporary file that each "
+              "Cloud Run copy has its own of, and they are lost on every restart. Set DATABASE_URL.", flush=True)
+    # Cloud Run pauses the CPU between requests, which would make the watchdog's own checks time
+    # out; there, Cloud Run's liveness probe on /healthz does the same job.
+    if os.environ.get("WATCHDOG", "0" if on_cloud_run else "1") != "0":
         threading.Thread(target=watchdog, args=(args.port,), name="watchdog", daemon=True).start()
     print(f"SignBridge running on http://{args.host}:{args.port}  (put HTTPS in front for camera access)", flush=True)
     serve(app, host=args.host, port=args.port, threads=args.threads, channel_timeout=60)

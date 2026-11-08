@@ -51,6 +51,43 @@ host replaces a frozen instance. `serve.py` also runs its own watchdog: if `/hea
 times in a row (about 90 s), it writes what each worker was stuck on to the log and exits, and
 the host starts a fresh copy. Set `WATCHDOG=0` to turn it off.
 
+### Google Cloud Run (recommended host)
+
+Cloud Run sleeps when nobody is using it and wakes in a few seconds on the next visit. Its
+monthly free allowance is far more than a clinic needs. Accounts and chats live in a separate
+PostgreSQL database (Neon), so they survive restarts.
+
+**1. Database (Neon, free, does not expire)**
+1. Sign up at neon.tech and create a project in the region closest to India.
+2. On the project dashboard, choose *Connect*, turn **Connection pooling off**, and copy the
+   connection string (`postgresql://...`). This is `DATABASE_URL`. Keep it secret: it holds the password.
+
+**2. Google Cloud**
+1. Sign in at console.cloud.google.com, create a project (e.g. `signbridge`) and link a billing
+   account. A card is required even within the free tier.
+2. *Billing → Budgets & alerts*: create a budget of e.g. ₹100 with email alerts.
+
+**3. Create the service** (*Cloud Run → Deploy container → Service*)
+1. Choose **Continuously deploy from a repository (GitHub)** → *Set up with Cloud Build*.
+   Connect GitHub, pick `anirudhrajk/Sign-Bridge-`, branch `^deploy$`, build type **Dockerfile**
+   (path `/Dockerfile`). Every push to `deploy` then redeploys automatically.
+2. Name `signbridge`, region **asia-south1 (Mumbai)**.
+3. Authentication: **Allow public access** (unauthenticated invocations).
+4. Billing **Request-based**. Minimum instances **0**, maximum instances **2**.
+5. *Containers → Settings*: port **8080**, memory **512 MiB**, CPU **1**, maximum concurrent
+   requests per instance **16**.
+6. *Containers → Variables & Secrets*: add
+   - `DATABASE_URL`: the Neon connection string
+   - `SECRET_KEY`: a long random value (`python -c "import secrets;print(secrets.token_hex(32))"`)
+   - `CLINICIAN_CODE`: the clinician sign-up code, if you use one
+7. *Containers → Health checks*: add a **liveness** probe, HTTP, path `/healthz`, period 30 s.
+8. Create. The first build takes a few minutes; the service URL appears at the top
+   (`https://signbridge-....asia-south1.run.app`).
+
+On Cloud Run, `serve.py` turns off its own watchdog (Cloud Run pauses the CPU between requests),
+and the liveness probe takes its place. Old container images accumulate in Artifact Registry. Add a
+cleanup policy there (keep the 3 most recent) to stay inside the free 0.5 GB of storage.
+
 ### Google sign-in in production
 
 In Google Cloud Console → Credentials → your OAuth client, add the production callback:
